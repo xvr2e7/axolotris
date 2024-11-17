@@ -5,7 +5,8 @@ local Game = {
     GRID_SIZE = 32,
     GRID_WIDTH = 12,
     GRID_HEIGHT = 21,
-    SIDEBAR_WIDTH = 6, -- Width for tetrimino showcase
+    SIDEBAR_WIDTH = 4,
+    SIDEBAR_SCALE = 0.6,
     COLORS = {
         background = {0.1, 0.1, 0.15},
         grid = {0.2, 0.2, 0.25},
@@ -13,7 +14,13 @@ local Game = {
         trapBlock = {0.6, 0.4, 0.4},
         highlighted = {0.8, 0.6, 0.6},
         selected = {0.5, 0.5, 0.5},
-        axolotl = {0.9, 0.5, 0.7},
+        axolotl = { 0.9, 0.5, 0.7 },
+        sidebar = {
+            background = {0.15, 0.15, 0.2},
+            border = {0.3, 0.3, 0.35},
+            text = {0.9, 0.9, 0.9},
+            shadow = {0.1, 0.1, 0.15, 0.5}
+        },
         -- Classic tetrimino colors
         tetrimino = {
             I = {0.0, 0.8, 0.8}, -- Cyan
@@ -25,7 +32,7 @@ local Game = {
             Z = {0.8, 0.0, 0.0}  -- Red
         }
     },
-    -- Tetrimino definitions (relative coordinates)
+    -- Tetrimino definitions
     TETRIMINOES = {
         I = {{{0,0}, {0,1}, {0,2}, {0,3}}},
         J = {{{0,0}, {0,1}, {0,2}, {-1,2}}},
@@ -70,18 +77,29 @@ end
 function Game:handleMouseClick(mouseX, mouseY)
     local gridX = math.floor(mouseX / self.GRID_SIZE) + 1
     local gridY = math.floor(mouseY / self.GRID_SIZE) + 1
-
+    
     if self:isValidPosition(gridX, gridY) then
         local block = self.grid[gridY][gridX]
         if block.highlighted then
+            -- Toggle block selection
             block.selected = not block.selected
-
-            -- Check for tetrimino after selection change
+            
+            -- Get all selected blocks
             local selected = self:getSelectedBlocks()
-            local tetriminoType = self:detectTetrimino(selected)
-
-            if tetriminoType then
-                self:startTetriminoTransition(selected, tetriminoType)
+            
+            -- If we have 4 or more selected blocks
+            if #selected >= 4 then
+                -- Check all possible combinations of 4 blocks
+                local combinations = self:findCombinations(selected, 4)
+                
+                for _, combo in ipairs(combinations) do
+                    local tetriminoType = self:detectTetrimino(combo)
+                    if tetriminoType then
+                        -- Found a valid tetrimino! Start transition
+                        self:startTetriminoTransition(combo, tetriminoType)
+                        break  -- Only handle one tetrimino at a time
+                    end
+                end
             end
         end
     end
@@ -169,19 +187,19 @@ end
 
 function Game:patternsMatch(pattern1, pattern2)
     if #pattern1 ~= #pattern2 then return false end
-    
+
     -- Create copies of patterns for sorting
     local sorted1 = {}
     local sorted2 = {}
-    
+
     -- Copy patterns
     for _, p in ipairs(pattern1) do
-        table.insert(sorted1, {x = p[1], y = p[2]})
+        table.insert(sorted1, { x = p[1], y = p[2] })
     end
     for _, p in ipairs(pattern2) do
-        table.insert(sorted2, {x = p[1], y = p[2]})
+        table.insert(sorted2, { x = p[1], y = p[2] })
     end
-    
+
     -- Sort based on coordinates
     local function sortCoords(a, b)
         if a.x == b.x then
@@ -189,20 +207,44 @@ function Game:patternsMatch(pattern1, pattern2)
         end
         return a.x < b.x
     end
-    
+
     table.sort(sorted1, sortCoords)
     table.sort(sorted2, sortCoords)
-    
+
     -- Compare sorted patterns
     for i = 1, #sorted1 do
         if sorted1[i].x ~= sorted2[i].x or sorted1[i].y ~= sorted2[i].y then
             return false
         end
     end
-    
+
     return true
 end
 
+function Game:findCombinations(blocks, size)
+    local result = {}
+    
+    local function combine(start, current)
+        if #current == size then
+            -- Create a new combination table
+            local combination = {}
+            for i = 1, #current do
+                combination[i] = current[i]
+            end
+            table.insert(result, combination)
+            return
+        end
+        
+        for i = start, #blocks do
+            table.insert(current, blocks[i])
+            combine(i + 1, current)
+            table.remove(current)
+        end
+    end
+    
+    combine(1, {})
+    return result
+end
 
 function Game:detectTetrimino(selected)
     if #selected ~= 4 then return nil end
@@ -289,7 +331,42 @@ function Game:startTetriminoTransition(blocks, type)
     end)
 end
 
+function Game:getCenteredPreviewPosition(pattern, itemX, itemY, itemWidth, itemHeight, scale)
+    -- Find pattern bounds
+    local minX, maxX = math.huge, -math.huge
+    local minY, maxY = math.huge, -math.huge
+    
+    for _, pos in ipairs(pattern[1]) do
+        minX = math.min(minX, pos[1])
+        maxX = math.max(maxX, pos[1])
+        minY = math.min(minY, pos[2])
+        maxY = math.max(maxY, pos[2])
+    end
+    
+    -- Calculate pattern dimensions
+    local patternWidth = (maxX - minX + 1) * self.GRID_SIZE * scale
+    local patternHeight = (maxY - minY + 1) * self.GRID_SIZE * scale
+    
+    -- Center position
+    local centerX = itemX + (itemWidth - patternWidth) / 2
+    local centerY = itemY + (itemHeight - patternHeight) / 2
+    
+    -- Adjust for pattern offset
+    centerX = centerX - minX * self.GRID_SIZE * scale
+    centerY = centerY - minY * self.GRID_SIZE * scale
+    
+    return centerX, centerY
+end
+
+
 function Game:draw()
+    -- Constants for sidebar layout
+    local SIDEBAR_OFFSET = self.GRID_SIZE * 2
+    local SIDEBAR_WIDTH = 4 * self.GRID_SIZE
+    local ITEM_HEIGHT = 2.5 * self.GRID_SIZE
+    local ITEM_PADDING = self.GRID_SIZE * 0.5
+    local PREVIEW_SCALE = 0.4
+    
     -- Draw background
     love.graphics.setColor(self.COLORS.background)
     love.graphics.rectangle("fill", 0, 0,
@@ -346,33 +423,6 @@ function Game:draw()
         end
     end
     
-    -- Draw tetrimino showcase
-    local showcaseX = -self.SIDEBAR_WIDTH * self.GRID_SIZE
-    local showcaseY = 0
-    
-    for type, pattern in pairs(self.TETRIMINOES) do
-        -- Draw tetrimino
-        love.graphics.setColor(self.COLORS.tetrimino[type])
-        for _, pos in ipairs(pattern[1]) do
-            love.graphics.rectangle("fill",
-                showcaseX + (pos[1] + 2) * self.GRID_SIZE + 1,
-                showcaseY + pos[2] * self.GRID_SIZE + 1,
-                self.GRID_SIZE - 2,
-                self.GRID_SIZE - 2
-            )
-        end
-        
-        -- Draw count
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.print(
-            tostring(self.tetriminoCounts[type] or 0),
-            showcaseX + 4 * self.GRID_SIZE,
-            showcaseY + self.GRID_SIZE
-        )
-        
-        showcaseY = showcaseY + 4 * self.GRID_SIZE
-    end
-    
     -- Draw axolotl
     love.graphics.setColor(self.COLORS.axolotl)
     love.graphics.push()
@@ -398,6 +448,105 @@ function Game:draw()
     )
     
     love.graphics.pop()
+    
+    -- Draw sidebar
+    local sidebarX = -SIDEBAR_WIDTH - SIDEBAR_OFFSET
+    local sidebarY = 0
+    
+    -- Draw sidebar background
+    love.graphics.setColor(0.15, 0.15, 0.2)
+    love.graphics.rectangle("fill",
+        sidebarX, sidebarY,
+        SIDEBAR_WIDTH,
+        self.GRID_HEIGHT * self.GRID_SIZE,
+        8, 8
+    )
+    
+    -- Draw sidebar border
+    love.graphics.setColor(0.3, 0.3, 0.35)
+    love.graphics.rectangle("line",
+        sidebarX, sidebarY,
+        SIDEBAR_WIDTH,
+        self.GRID_HEIGHT * self.GRID_SIZE,
+        8, 8
+    )
+    
+    -- Draw tetrimino showcase
+    local itemX = sidebarX + ITEM_PADDING
+    local itemY = ITEM_PADDING
+    local itemWidth = SIDEBAR_WIDTH - ITEM_PADDING * 2
+    local itemContentHeight = ITEM_HEIGHT - ITEM_PADDING
+    
+    for type, pattern in pairs(self.TETRIMINOES) do
+        -- Draw item background with shadow effect
+        love.graphics.setColor(0.1, 0.1, 0.15, 0.5)
+        love.graphics.rectangle("fill",
+            itemX, itemY,
+            itemWidth,
+            itemContentHeight,
+            4, 4
+        )
+        
+        -- Draw tetrimino preview
+        love.graphics.setColor(self.COLORS.tetrimino[type])
+        
+        -- Get centered position for this tetrimino
+        local previewX, previewY = self:getCenteredPreviewPosition(
+            pattern,
+            itemX,
+            itemY,
+            itemWidth,
+            itemContentHeight,
+            PREVIEW_SCALE
+        )
+        
+        for _, pos in ipairs(pattern[1]) do
+            love.graphics.rectangle("fill",
+                previewX + pos[1] * self.GRID_SIZE * PREVIEW_SCALE,
+                previewY + pos[2] * self.GRID_SIZE * PREVIEW_SCALE,
+                self.GRID_SIZE * PREVIEW_SCALE - 1,
+                self.GRID_SIZE * PREVIEW_SCALE - 1
+            )
+        end
+        
+        -- Draw count with shadow effect
+        local count = self.tetriminoCounts[type] or 0
+        local countX = itemX + itemWidth - ITEM_PADDING
+        local countY = itemY + itemContentHeight - ITEM_PADDING
+        local TEXT_SCALE = 1.2
+        
+        -- Calculate text dimensions to help with positioning
+        local textWidth = love.graphics.getFont():getWidth(tostring(count)) * TEXT_SCALE
+        local textHeight = love.graphics.getFont():getHeight() * TEXT_SCALE
+        
+        -- Adjust position to align with bottom right corner
+        countX = countX - textWidth
+        countY = countY - textHeight
+        
+        -- Shadow
+        love.graphics.setColor(0, 0, 0, 0.5)
+        love.graphics.print(
+            tostring(count),
+            countX + 1,
+            countY + 1,
+            0,
+            TEXT_SCALE,
+            TEXT_SCALE
+        )
+        
+        -- Text
+        love.graphics.setColor(0.9, 0.9, 0.9)
+        love.graphics.print(
+            tostring(count),
+            countX,
+            countY,
+            0,
+            TEXT_SCALE,
+            TEXT_SCALE
+        )
+        
+        itemY = itemY + ITEM_HEIGHT
+    end
 end
 
 function Game:new()
