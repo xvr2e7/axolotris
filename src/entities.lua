@@ -1,11 +1,15 @@
--- entities.lua
 local Entities = {}
 
 function Entities.newBlock(blockType)
     return {
         type = blockType,
         selected = false,
-        highlighted = false
+        highlighted = false,
+        color = nil, -- Current color (for transitions)
+        targetColor = nil, -- Target color for transitions
+        transitionStart = 0, -- When color transition started
+        transitionDuration = 0.5, -- How long transition takes
+        tetriminoType = nil -- Which tetrimino this block is part of
     }
 end
 
