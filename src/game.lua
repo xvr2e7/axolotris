@@ -8,7 +8,8 @@ local Game = {
     GRID_SIZE = 32,
     GRID_WIDTH = 12,
     GRID_HEIGHT = 21,
-    MOVE_DELAY = 0.15
+    MOVE_DELAY = 0.15,
+    BUFFER_ZONE_HEIGHT = 7
 }
 
 function Game:new()
@@ -18,7 +19,7 @@ function Game:new()
         render = Render:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
         input = Input:new(self.MOVE_DELAY, self.GRID_SIZE),
         ui = UI:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
-        -- Create axolotl at the bottom of the grid
+        -- Create axolotl at the bottom middle of the grid
         axolotl = {
             x = math.floor(self.GRID_WIDTH / 2),
             y = self.GRID_HEIGHT,
@@ -27,8 +28,8 @@ function Game:new()
     }
     setmetatable(game, {__index = self})
     
-    -- Initial highlight update
-    game:updateHighlightedBlocks()
+    -- Initialize initial block highlighting
+    game:initializeHighlighting()
     return game
 end
 
@@ -38,8 +39,14 @@ function Game:isValidPosition(x, y)
         return false
     end
     
-    -- Check if position is disabled by barrier field
     local block = self.grid.grid[y][x]
+    
+    -- Can't move onto barrier blocks
+    if block.barrier then
+        return false
+    end
+    
+    -- Can't move onto disabled blocks unless they're safe
     if block.disabled and not block.safe then
         return false
     end
@@ -47,21 +54,8 @@ function Game:isValidPosition(x, y)
     return true
 end
 
-function Game:canRotateAtCurrentPosition()
-    local x, y = self.axolotl.x, self.axolotl.y
-    local nextRotation = (self.axolotl.rotation + 90) % 360
-    
-    -- Get positions that would be reached after rotation
-    local futurePositions = self:getReachablePositionsForRotation(nextRotation)
-    
-    -- Check if all future positions are valid
-    for _, pos in ipairs(futurePositions) do
-        if not self:isValidPosition(pos.x, pos.y) then
-            return false
-        end
-    end
-    
-    return true
+function Game:isInBufferZone(y)
+    return y <= self.BUFFER_ZONE_HEIGHT
 end
 
 function Game:moveAxolotl(dx, dy)
@@ -69,35 +63,108 @@ function Game:moveAxolotl(dx, dy)
     local newY = self.axolotl.y + dy
     
     if self:isValidPosition(newX, newY) then
-        -- Clear highlights before moving
-        self:clearAllHighlights()
+        -- Reset previously indicated blocks back to normal
+        local oldPositions = self:getReachablePositionsForRotation(self.axolotl.rotation)
+        for _, pos in ipairs(oldPositions) do
+            if self:isValidPosition(pos.x, pos.y) then
+                local block = self.grid.grid[pos.y][pos.x]
+                if not block.selected then
+                    if block.safe then
+                        block.color = self.grid.colors.safeBlock
+                    else
+                        block.color = self.grid.colors.original
+                    end
+                end
+                block.highlighted = false
+            end
+        end
         
+        -- Restore heart on previous position if it was a safe block
+        local currentBlock = self.grid.grid[self.axolotl.y][self.axolotl.x]
+        if currentBlock.safe then
+            currentBlock.showHeart = true
+        end
+        
+        -- Update axolotl position
         self.axolotl.x = newX
         self.axolotl.y = newY
         
-        -- Update highlights for new position
-        self:updateHighlightedBlocks()
+        -- Hide heart on new position if it's a safe block
+        local targetBlock = self.grid.grid[newY][newX]
+        if targetBlock.safe then
+            targetBlock.showHeart = false
+        end
+        
+        -- Highlight new adjacent blocks
+        local newPositions = self:getReachablePositionsForRotation(self.axolotl.rotation)
+        for _, pos in ipairs(newPositions) do
+            if self:isValidPosition(pos.x, pos.y) then
+                local block = self.grid.grid[pos.y][pos.x]
+                block.highlighted = true
+                if not block.selected then
+                    if block.safe then
+                        block.color = self.grid.colors.safeBlockHighlighted
+                    else
+                        block.color = self.grid.colors.highlighted
+                    end
+                end
+            end
+        end
+        
+        -- Check for victory condition
+        if self:isInBufferZone(newY) and self.grid.grid[newY][newX].isExit then
+            self:handleVictory()
+        end
     end
 end
 
 function Game:rotateAxolotl()
-    -- Only allow rotation if there's space
-    if self:canRotateAtCurrentPosition() then
-        -- Clear highlights before rotating
-        self:clearAllHighlights()
-        
-        self.axolotl.rotation = (self.axolotl.rotation + 90) % 360
-        
-        -- Update highlights for new rotation
-        self:updateHighlightedBlocks()
+    -- Reset previously indicated blocks
+    local oldPositions = self:getReachablePositionsForRotation(self.axolotl.rotation)
+    for _, pos in ipairs(oldPositions) do
+        if self:isValidPosition(pos.x, pos.y) then
+            local block = self.grid.grid[pos.y][pos.x]
+            if not block.selected then
+                if block.safe then
+                    block.color = self.grid.colors.safeBlock
+                else
+                    block.color = self.grid.colors.original
+                end
+            end
+            block.highlighted = false
+        end
+    end
+    
+    -- Update rotation
+    self.axolotl.rotation = (self.axolotl.rotation + 90) % 360
+    
+    -- Highlight new adjacent blocks
+    local newPositions = self:getReachablePositionsForRotation(self.axolotl.rotation)
+    for _, pos in ipairs(newPositions) do
+        if self:isValidPosition(pos.x, pos.y) then
+            local block = self.grid.grid[pos.y][pos.x]
+            block.highlighted = true
+            if not block.selected then
+                if block.safe then
+                    block.color = self.grid.colors.safeBlockHighlighted
+                else
+                    block.color = self.grid.colors.highlighted
+                end
+            end
+        end
     end
 end
 
-function Game:clearAllHighlights()
-    for y = 1, self.GRID_HEIGHT do
-        for x = 1, self.GRID_WIDTH do
-            if self.grid.grid[y] and self.grid.grid[y][x] then
-                self.grid.grid[y][x].highlighted = false
+function Game:initializeHighlighting()
+    local positions = self:getReachablePositionsForRotation(self.axolotl.rotation)
+    for _, pos in ipairs(positions) do
+        if self:isValidPosition(pos.x, pos.y) then
+            local block = self.grid.grid[pos.y][pos.x]
+            block.highlighted = true
+            if block.safe then
+                block.color = block.selected and self.grid.colors.safeBlockSelected or self.grid.colors.safeBlockHighlighted
+            else
+                block.color = block.selected and self.grid.colors.selected or self.grid.colors.highlighted
             end
         end
     end
@@ -107,46 +174,54 @@ function Game:getReachablePositionsForRotation(rotation)
     local x, y = self.axolotl.x, self.axolotl.y
     local positions = {}
     
-    if rotation == 0 then -- Up
+    -- The positions are returned in a specific order corresponding to the "rami"
+    -- extending from the axolotl's sides based on its rotation
+    if rotation == 0 then -- Facing up
         positions = {
-            {x = x-1, y = y}, -- Left
-            {x = x+1, y = y}, -- Right
-            {x = x, y = y-1}  -- Up
+            {x = x-1, y = y},   -- Left side
+            {x = x+1, y = y},   -- Right side
+            {x = x, y = y-1}    -- Front (top)
         }
-    elseif rotation == 90 then -- Right
+    elseif rotation == 90 then -- Facing right
         positions = {
-            {x = x, y = y-1}, -- Up
-            {x = x, y = y+1}, -- Down
-            {x = x+1, y = y}  -- Right
+            {x = x, y = y-1},   -- Top side
+            {x = x, y = y+1},   -- Bottom side
+            {x = x+1, y = y}    -- Front (right)
         }
-    elseif rotation == 180 then -- Down
+    elseif rotation == 180 then -- Facing down
         positions = {
-            {x = x-1, y = y}, -- Left
-            {x = x+1, y = y}, -- Right
-            {x = x, y = y+1}  -- Down
+            {x = x-1, y = y},   -- Left side
+            {x = x+1, y = y},   -- Right side
+            {x = x, y = y+1}    -- Front (bottom)
         }
-    else -- Left (270)
+    else -- rotation == 270, Facing left
         positions = {
-            {x = x, y = y-1}, -- Up
-            {x = x, y = y+1}, -- Down
-            {x = x-1, y = y}  -- Left
+            {x = x, y = y-1},   -- Top side
+            {x = x, y = y+1},   -- Bottom side
+            {x = x-1, y = y}    -- Front (left)
         }
     end
     
     return positions
 end
 
-function Game:updateHighlightedBlocks()
-    -- Clear all highlights first
-    self:clearAllHighlights()
+function Game:handleMouseClick(screenX, screenY)
+    local gridX, gridY = self:screenToGridCoords(screenX, screenY)
     
-    -- Get reachable positions based on current rotation
-    local positions = self:getReachablePositionsForRotation(self.axolotl.rotation)
-    
-    -- Only highlight valid positions that aren't disabled by barriers
-    for _, pos in ipairs(positions) do
-        if self:isValidPosition(pos.x, pos.y) then
-            self.grid.grid[pos.y][pos.x].highlighted = true
+    if self:isValidPosition(gridX, gridY) then
+        local block = self.grid.grid[gridY][gridX]
+        -- Only allow selection/deselection within highlighted blocks
+        if block.highlighted then
+            if self.grid:selectBlock(gridX, gridY) then
+                local selectedBlocks = self.grid:getLargestConnectedGroup()
+                
+                if #selectedBlocks == 4 then
+                    local tetriminoType = self.tetrimino:detectTetrimino(selectedBlocks)
+                    if tetriminoType then
+                        self.tetrimino:handleMatchedTetrimino(tetriminoType, selectedBlocks, self.grid)
+                    end
+                end
+            end
         end
     end
 end
@@ -166,25 +241,8 @@ function Game:screenToGridCoords(screenX, screenY)
     return gridX, gridY
 end
 
-function Game:handleMouseClick(screenX, screenY)
-    local gridX, gridY = self:screenToGridCoords(screenX, screenY)
-    
-    if self:isValidPosition(gridX, gridY) then
-        local block = self.grid.grid[gridY][gridX]
-        -- Only allow selection/deselection within highlighted area
-        if block.highlighted then
-            if self.grid:selectBlock(gridX, gridY) then
-                local selectedBlocks = self.grid:getLargestConnectedGroup()
-                
-                if #selectedBlocks == 4 then
-                    local tetriminoType = self.tetrimino:detectTetrimino(selectedBlocks)
-                    if tetriminoType then
-                        self.tetrimino:handleMatchedTetrimino(tetriminoType, selectedBlocks, self.grid)
-                    end
-                end
-            end
-        end
-    end
+function Game:handleVictory()
+    print("Victory! The axolotl has escaped!")
 end
 
 function Game:update(dt)
