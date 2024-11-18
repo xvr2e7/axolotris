@@ -209,12 +209,32 @@ function Game:getReachablePositionsForRotation(rotation)
     return positions
 end
 
+function Game:refresh()
+    -- Create new instances of all managers
+    self.tetrimino = Tetrimino:new()
+    self.grid = Grid:new(self.GRID_WIDTH, self.GRID_HEIGHT)
+    -- Reset axolotl position
+    self.axolotl = {
+        x = math.floor(self.GRID_WIDTH / 2),
+        y = self.GRID_HEIGHT,
+        rotation = 0
+    }
+    -- Reinitialize highlighting
+    self:initializeHighlighting()
+end
+
 function Game:handleMouseClick(screenX, screenY)
+    -- Check if refresh button was clicked (using raw screen coordinates)
+    if self.ui:isRefreshButtonClicked(screenX, screenY) then
+        self:refresh()
+        return
+    end
+    
+    -- Convert to grid coordinates for grid interaction
     local gridX, gridY = self:screenToGridCoords(screenX, screenY)
     
     if self:isValidPosition(gridX, gridY) then
         local block = self.grid.grid[gridY][gridX]
-        -- Only allow selection/deselection within highlighted blocks
         if block.highlighted then
             if self.grid:selectBlock(gridX, gridY) then
                 local selectedBlocks = self.grid:getLargestConnectedGroup()
@@ -254,6 +274,10 @@ function Game:update(dt)
 end
 
 function Game:draw()
+    -- Update window dimensions in UI manager
+    self.ui.windowWidth = love.graphics.getWidth()
+    self.ui.windowHeight = love.graphics.getHeight()
+    
     love.graphics.push()
     
     local windowWidth = love.graphics.getWidth()
@@ -264,13 +288,17 @@ function Game:draw()
     self.windowOffsetX = (windowWidth - gridPixelWidth) / 2
     self.windowOffsetY = (windowHeight - gridPixelHeight) / 2
     
+    -- Draw grid and game elements with offset
     love.graphics.translate(self.windowOffsetX, self.windowOffsetY)
-    
     self.render:drawGrid(self.grid)
     self.render:drawAxolotl(self.axolotl)
     self.ui:drawSidebar(self.tetrimino, self.render)
     
+    -- Reset transform before drawing refresh button
     love.graphics.pop()
+    
+    -- Draw refresh button in screen space
+    self.ui:drawRefreshButton(self.render)
 end
 
 return Game

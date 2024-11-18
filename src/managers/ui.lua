@@ -3,7 +3,9 @@ local UIManager = {
     SIDEBAR_WIDTH = 4 * 32,
     ITEM_HEIGHT = 2.5 * 32,
     ITEM_PADDING = 32 * 0.5,
-    PREVIEW_SCALE = 0.4
+    PREVIEW_SCALE = 0.4,
+    REFRESH_BUTTON_SIZE = 32,
+    REFRESH_BUTTON_PADDING = 16
 }
 
 function UIManager:new(gridWidth, gridHeight, gridSize)
@@ -16,10 +18,66 @@ function UIManager:new(gridWidth, gridHeight, gridSize)
         sidebarWidth = gridSize * 4,
         itemHeight = gridSize * 2.5,
         itemPadding = gridSize * 0.5,
-        previewScale = 0.4
+        previewScale = 0.4,
+        refreshButtonSize = gridSize,
+        refreshButtonPadding = gridSize * 0.5,
+        -- Store window dimensions for refresh button positioning
+        windowWidth = love.graphics.getWidth(),
+        windowHeight = love.graphics.getHeight()
     }
     setmetatable(manager, {__index = self})
     return manager
+end
+
+function UIManager:isRefreshButtonClicked(x, y)
+    -- Account for the actual screen position
+    local buttonX = self.windowWidth - self.refreshButtonSize - self.refreshButtonPadding
+    local buttonY = self.refreshButtonPadding
+    
+    return x >= buttonX and x <= buttonX + self.refreshButtonSize and
+           y >= buttonY and y <= buttonY + self.refreshButtonSize
+end
+
+function UIManager:drawRefreshButton(renderManager)
+    local buttonX = self.windowWidth - self.refreshButtonSize - self.refreshButtonPadding
+    local buttonY = self.refreshButtonPadding
+    
+    -- Draw button background
+    renderManager:drawRect(
+        buttonX,
+        buttonY,
+        self.refreshButtonSize,
+        self.refreshButtonSize,
+        renderManager.COLORS.ui.background
+    )
+    
+    -- Draw button border
+    renderManager:drawRect(
+        buttonX,
+        buttonY,
+        self.refreshButtonSize,
+        self.refreshButtonSize,
+        renderManager.COLORS.ui.border,
+        "line"
+    )
+    
+    -- Draw simple circle in the center
+    love.graphics.setColor(renderManager.COLORS.ui.text)
+    love.graphics.setLineWidth(2)
+    
+    local centerX = buttonX + self.refreshButtonSize / 2
+    local centerY = buttonY + self.refreshButtonSize / 2
+    local radius = self.refreshButtonSize * 0.3
+    
+    love.graphics.circle('line', centerX, centerY, radius)
+    
+    -- Reset line width
+    love.graphics.setLineWidth(1)
+end
+
+function UIManager:draw(tetriminoManager, renderManager)
+    self:drawSidebar(tetriminoManager, renderManager)
+    self:drawRefreshButton(renderManager)
 end
 
 function UIManager:drawSidebar(tetriminoManager, renderManager)
