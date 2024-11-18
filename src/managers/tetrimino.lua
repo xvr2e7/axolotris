@@ -176,31 +176,31 @@ function TetriminoManager:handleMatchedTetrimino(type, blocks, gridManager)
     local tetriminoColor = self.COLORS[type]
     if not tetriminoColor then return end
     
-    -- Store colors and states for reversion
+    -- Immediately set blocks to tetrimino color and store previous state
     for _, pos in ipairs(blocks) do
         local block = gridManager.grid[pos.y][pos.x]
-        block.previousColor = block.color
-        -- If block has a tetris color, store it for later reversion
-        if block.tetrisColor then
-            block.revertToTetrisColor = block.tetrisColor
-        end
+        -- Store original color and state for reversion
+        block.originalColor = block.color
         block.wasHighlighted = block.highlighted
+        block.wasSafe = block.safe  -- Store safe state
+        -- Immediately set to tetrimino color
         block.color = tetriminoColor
     end
     
-    -- Schedule reversion after delay
+    -- Schedule instant reversion after a brief delay
     Timer.after(0.2, function()
         if gridManager and gridManager.revertBlocks then
+            -- Instantly revert each block
             for _, pos in ipairs(blocks) do
                 local block = gridManager.grid[pos.y][pos.x]
-                -- Revert to tetris color if it exists, otherwise normal state
-                if block.revertToTetrisColor then
-                    block.color = block.revertToTetrisColor
-                    block.revertToTetrisColor = nil
+                if block.wasSafe then
+                    -- Safe blocks revert to green
+                    block.color = gridManager.colors.safeBlock
                 else
+                    -- Regular blocks revert to normal or highlighted state
                     block.color = block.wasHighlighted and 
-                        gridManager.colors.highlighted or 
-                        gridManager.colors.original
+                                gridManager.colors.highlighted or 
+                                gridManager.colors.original
                 end
             end
             gridManager:clearBlockSelection(blocks)

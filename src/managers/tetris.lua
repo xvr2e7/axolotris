@@ -231,31 +231,6 @@ function TetrisManager:hardDrop()
     self:lockPiece()
 end
 
--- Piece locking
-function TetrisManager:lockPiece()
-    if not self.activePiece then return end
-    
-    for _, block in ipairs(self.activePiece.pattern) do
-        local gridX = self.activePiece.x + block[1]
-        local gridY = self.activePiece.y + block[2]
-        
-        if gridY >= 1 and gridY <= self.game.GRID_HEIGHT and
-           gridX >= 1 and gridX <= self.game.GRID_WIDTH then
-            local gridBlock = self.game.grid.grid[gridY][gridX]
-            gridBlock.color = self.activePiece.color
-            gridBlock.tetrisColor = self.activePiece.color  -- Store original tetris color
-            gridBlock.locked = true
-        end
-    end
-    
-    -- Clear active and ghost pieces
-    self.activePiece = nil
-    self.ghostPiece = nil
-    
-    -- Spawn next piece
-    self:spawnNextPiece()
-end
-
 -- Main update loop
 function TetrisManager:update(dt)
     if not self:isInTetrisMode() or not self.activePiece then return end
@@ -330,6 +305,165 @@ function TetrisManager:drawActivePiece(renderManager)
             renderManager.gridSize - 2
         )
     end
+end
+
+function TetrisManager:checkLineClears()
+    local linesToClear = {}
+    
+    -- Check each row
+    for y = 1, self.game.GRID_HEIGHT do
+        local complete = true
+        -- Check if row is filled (including barriers and safe blocks)
+        for x = 1, self.game.GRID_WIDTH do
+            local block = self.game.grid.grid[y][x]
+            if not (block.locked or block.barrier or block.safe) then
+                complete = false
+                break
+            end
+        end
+        if complete then
+            table.insert(linesToClear, y)
+        end
+    end
+    
+    -- Process line clears
+    if #linesToClear > 0 then
+        self:clearLines(linesToClear)
+    end
+end
+
+function TetrisManager:clearLines(lines)
+    local isDoubleLineClear = #lines >= 2
+    
+    -- First handle barriers in the cleared lines
+    for _, y in ipairs(lines) do
+        for x = 1, self.game.GRID_WIDTH do
+            local block = self.game.grid.grid[y][x]
+            
+            if block.barrier then
+                if isDoubleLineClear then
+                    -- Clear barrier completely
+                    self:clearBarrier(x, y)
+                elseif block.barrier.strength == "primary" then
+                    -- Convert to weakened barrier
+                    self:weakenBarrier(x, y)
+                else
+                    -- Clear weak barrier
+                    self:clearBarrier(x, y)
+                end
+            end
+        end
+    end
+    
+    -- Then collapse lines (except safe blocks)
+    self:collapseLines(lines)
+end
+
+function TetrisManager:clearBarrier(x, y)
+    local block = self.game.grid.grid[y][x]
+    local barrierType = block.barrier.type
+    
+    -- Clear barrier block itself
+    block.barrier = nil
+    block.color = self.game.grid.colors.original
+    
+    -- Clear barrier field projections
+    if barrierType == "horizontal" or barrierType == "cross" then
+        for ix = 1, self.game.GRID_WIDTH do
+            if ix ~= x then
+                local projBlock = self.game.grid.grid[y][ix]
+                if not projBlock.safe then
+                    projBlock.disabled = false
+                    if not projBlock.tetrisColor then
+                        projBlock.color = self.game.grid.colors.original
+                    end
+                end
+            end
+        end
+    end
+    
+    if barrierType == "vertical" or barrierType == "cross" then
+        for iy = 1, self.game.GRID_HEIGHT do
+            if iy ~= y then
+                local projBlock = self.game.grid.grid[iy][x]
+                if not projBlock.safe then
+                    projBlock.disabled = false
+                    if not projBlock.tetrisColor then
+                        projBlock.color = self.game.grid.colors.original
+                    end
+                end
+            end
+        end
+    end
+end
+
+function TetrisManager:weakenBarrier(x, y)
+    local block = self.game.grid.grid[y][x]
+    
+    -- Convert to weakened barrier
+    block.barrier.strength = "weak"
+    block.color = self.game.grid.colors.weakBarrier
+end
+
+function TetrisManager:collapseLines(clearedLines)
+    -- Sort lines in ascending order
+    table.sort(clearedLines)
+    
+    -- For each cleared line
+    for _, clearedY in ipairs(clearedLines) do
+        -- Move all non-safe blocks down
+        for y = clearedY, 2, -1 do
+            for x = 1, self.game.GRID_WIDTH do
+                local block = self.game.grid.grid[y][x]
+                local blockAbove = self.game.grid.grid[y-1][x]
+                
+                if not block.safe then
+                    -- Copy properties from block above
+                    block.color = blockAbove.color
+                    block.locked = blockAbove.locked
+                    block.barrier = blockAbove.barrier
+                    block.disabled = blockAbove.disabled
+                    block.tetrisColor = blockAbove.tetrisColor
+                    
+                    -- Clear block above
+                    blockAbove.color = self.game.grid.colors.original
+                    blockAbove.locked = false
+                    blockAbove.barrier = nil
+                    blockAbove.disabled = false
+                    blockAbove.tetrisColor = nil
+                end
+            end
+        end
+    end
+end
+
+-- Piece locking
+function TetrisManager:lockPiece()
+    if not self.activePiece then return end
+
+    -- Transfer piece to grid
+    for _, block in ipairs(self.activePiece.pattern) do
+        local gridX = self.activePiece.x + block[1]
+        local gridY = self.activePiece.y + block[2]
+
+        if gridY >= 1 and gridY <= self.game.GRID_HEIGHT and
+            gridX >= 1 and gridX <= self.game.GRID_WIDTH then
+            local gridBlock = self.game.grid.grid[gridY][gridX]
+            gridBlock.color = self.activePiece.color
+            gridBlock.tetrisColor = self.activePiece.color
+            gridBlock.locked = true
+        end
+    end
+
+    -- Clear active and ghost pieces
+    self.activePiece = nil
+    self.ghostPiece = nil
+
+    -- Check for line clears
+    self:checkLineClears()
+
+    -- Spawn next piece
+    self:spawnNextPiece()
 end
 
 function TetrisManager:exitTetrisMode()

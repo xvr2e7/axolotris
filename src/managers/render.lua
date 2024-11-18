@@ -51,6 +51,40 @@ function RenderManager:drawText(text, x, y, color, scale)
     love.graphics.print(text, x, y, 0, scale or 1, scale or 1)
 end
 
+function RenderManager:drawBlock(x, y, block, size)
+    -- Draw base block
+    self:setColor(block.color)
+    love.graphics.rectangle(
+        "fill",
+        x + 1,
+        y + 1,
+        size - 2,
+        size - 2
+    )
+    
+    -- Draw border for primary barriers
+    if block.barrier and block.barrier.strength == "primary" then
+        -- Draw thick dark border
+        love.graphics.setLineWidth(3)
+        self:setColor({0.15, 0.15, 0.15})
+        love.graphics.rectangle(
+            "line",
+            x + 2,
+            y + 2,
+            size - 4,
+            size - 4
+        )
+        love.graphics.setLineWidth(1)
+    end
+    
+    -- Draw symbols
+    if block.barrier then
+        self:drawBarrierSymbol(x, y, block.barrier.type)
+    elseif block.safe and block.showHeart then
+        self:drawPixelHeart(x, y)
+    end
+end
+
 function RenderManager:drawGrid(gridManager, tetrisManager)
     if not gridManager then return end
     
@@ -66,7 +100,30 @@ function RenderManager:drawGrid(gridManager, tetrisManager)
         self.gridWidth * self.gridSize,
         self.gridHeight * self.gridSize)
     
-    -- First pass: Draw non-portal blocks
+    -- First pass: Draw ghost piece in Tetris mode
+    if inTetrisMode and tetrisManager and tetrisManager.ghostPiece then
+        for _, block in ipairs(tetrisManager.ghostPiece.pattern) do
+            local x = (tetrisManager.ghostPiece.x + block[1] - 1) * self.gridSize
+            local y = (tetrisManager.ghostPiece.y + block[2] - 1) * self.gridSize
+            
+            -- Draw semi-transparent ghost block
+            self:setColor({
+                tetrisManager.ghostPiece.color[1],
+                tetrisManager.ghostPiece.color[2],
+                tetrisManager.ghostPiece.color[3],
+                0.3
+            })
+            love.graphics.rectangle(
+                'fill',
+                x + 1,
+                y + 1,
+                self.gridSize - 2,
+                self.gridSize - 2
+            )
+        end
+    end
+    
+    -- Second pass: Draw all non-portal blocks
     for y = 1, self.gridHeight do
         for x = 1, self.gridWidth do
             local block = gridManager.grid[y][x]
@@ -106,6 +163,20 @@ function RenderManager:drawGrid(gridManager, tetrisManager)
                         self.gridSize - 2
                     )
                     
+                    -- Draw primary barrier border
+                    if block.barrier and block.barrier.strength == "primary" then
+                        love.graphics.setLineWidth(3)
+                        self:setColor({0.15, 0.15, 0.15})
+                        love.graphics.rectangle(
+                            "line",
+                            blockX + 2,
+                            blockY + 2,
+                            self.gridSize - 4,
+                            self.gridSize - 4
+                        )
+                        love.graphics.setLineWidth(1)
+                    end
+                    
                     -- Draw block symbols
                     if block.barrier then
                         self:drawBarrierSymbol(blockX, blockY, block.barrier.type)
@@ -117,7 +188,7 @@ function RenderManager:drawGrid(gridManager, tetrisManager)
         end
     end
     
-    -- Draw grid lines
+    -- Third pass: Draw grid lines
     self:setColor(self.COLORS.gridLine)
     for x = 0, self.gridWidth do
         love.graphics.line(
@@ -133,7 +204,7 @@ function RenderManager:drawGrid(gridManager, tetrisManager)
         )
     end
     
-    -- Draw exit portal
+    -- Fourth pass: Draw exit portal
     for y = 1, self.gridHeight do
         for x = 1, self.gridWidth do
             local block = gridManager.grid[y][x]
@@ -146,46 +217,20 @@ function RenderManager:drawGrid(gridManager, tetrisManager)
         end
     end
     
-    -- Draw Tetris pieces if in Tetris mode
-    if inTetrisMode and tetrisManager then
-        -- Draw ghost piece
-        if tetrisManager.ghostPiece then
-            for _, block in ipairs(tetrisManager.ghostPiece.pattern) do
-                local x = (tetrisManager.ghostPiece.x + block[1] - 1) * self.gridSize
-                local y = (tetrisManager.ghostPiece.y + block[2] - 1) * self.gridSize
-                
-                -- Draw semi-transparent ghost block
-                self:setColor({
-                    tetrisManager.ghostPiece.color[1],
-                    tetrisManager.ghostPiece.color[2],
-                    tetrisManager.ghostPiece.color[3],
-                    0.3
-                })
-                love.graphics.rectangle(
-                    'fill',
-                    x + 1,
-                    y + 1,
-                    self.gridSize - 2,
-                    self.gridSize - 2
-                )
-            end
-        end
-        
-        -- Draw active piece
-        if tetrisManager.activePiece then
-            for _, block in ipairs(tetrisManager.activePiece.pattern) do
-                local x = (tetrisManager.activePiece.x + block[1] - 1) * self.gridSize
-                local y = (tetrisManager.activePiece.y + block[2] - 1) * self.gridSize
-                
-                self:setColor(tetrisManager.activePiece.color)
-                love.graphics.rectangle(
-                    'fill',
-                    x + 1,
-                    y + 1,
-                    self.gridSize - 2,
-                    self.gridSize - 2
-                )
-            end
+    -- Final pass: Draw active Tetris piece
+    if inTetrisMode and tetrisManager and tetrisManager.activePiece then
+        for _, block in ipairs(tetrisManager.activePiece.pattern) do
+            local x = (tetrisManager.activePiece.x + block[1] - 1) * self.gridSize
+            local y = (tetrisManager.activePiece.y + block[2] - 1) * self.gridSize
+            
+            self:setColor(tetrisManager.activePiece.color)
+            love.graphics.rectangle(
+                'fill',
+                x + 1,
+                y + 1,
+                self.gridSize - 2,
+                self.gridSize - 2
+            )
         end
     end
 end
