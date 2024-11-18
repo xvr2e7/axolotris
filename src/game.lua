@@ -33,7 +33,18 @@ function Game:new()
 end
 
 function Game:isValidPosition(x, y)
-    return x >= 1 and x <= self.GRID_WIDTH and y >= 1 and y <= self.GRID_HEIGHT
+    -- Check grid boundaries
+    if x < 1 or x > self.GRID_WIDTH or y < 1 or y > self.GRID_HEIGHT then
+        return false
+    end
+    
+    -- Check if position is disabled by barrier field
+    local block = self.grid.grid[y][x]
+    if block.disabled and not block.safe then
+        return false
+    end
+    
+    return true
 end
 
 function Game:canRotateAtCurrentPosition()
@@ -132,7 +143,7 @@ function Game:updateHighlightedBlocks()
     -- Get reachable positions based on current rotation
     local positions = self:getReachablePositionsForRotation(self.axolotl.rotation)
     
-    -- Only highlight valid positions
+    -- Only highlight valid positions that aren't disabled by barriers
     for _, pos in ipairs(positions) do
         if self:isValidPosition(pos.x, pos.y) then
             self.grid.grid[pos.y][pos.x].highlighted = true

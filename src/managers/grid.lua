@@ -8,7 +8,11 @@ function GridManager:new(width, height)
         selectedBlocks = {},
         originalBlockColor = {0.6, 0.4, 0.4},
         highlightedColor = {0.8, 0.6, 0.6},
-        selectedColor = {0.5, 0.5, 0.5}
+        selectedColor = {0.5, 0.5, 0.5},
+        barrierColor = {0.3, 0.3, 0.3},
+        weakBarrierColor = {0.4, 0.4, 0.4},
+        safeBlockColor = {0.5, 0.8, 0.5},
+        disabledColor = {0.9, 0.9, 0.9}
     }
     setmetatable(manager, { __index = self })
     self:initializeGrid(manager)
@@ -16,20 +20,27 @@ function GridManager:new(width, height)
 end
 
 function GridManager:initializeGrid(manager)
+    -- Initialize empty grid
     for y = 1, manager.height do
         manager.grid[y] = {}
         for x = 1, manager.width do
             manager.grid[y][x] = {
-                type = "trap",
+                type = "normal",
                 selected = false,
                 highlighted = false,
                 color = manager.originalBlockColor,
+                barrier = nil,
+                disabled = false,
+                safe = false,
                 targetColor = nil,
                 transitionStart = 0,
                 transitionDuration = 0.5
             }
         end
     end
+    
+    -- Place barriers and safe blocks between buffer zone and bottom (rows 2-13)
+    self:placeBarriersAndSafeBlocks(manager)
 end
 
 function GridManager:findConnectedBlocks(startX, startY)
@@ -92,16 +103,17 @@ end
 function GridManager:selectBlock(x, y)
     if self.grid[y] and self.grid[y][x] then
         local block = self.grid[y][x]
-        -- Only allow selection/deselection if block is highlighted
-        if block.highlighted then
+        -- Only allow selection if block is highlighted and not disabled
+        if block.highlighted and (not block.disabled or block.safe) then
             block.selected = not block.selected
-            -- Update block color based on selection state
-            block.color = block.selected and self.selectedColor or self.originalBlockColor
+            block.color = block.selected and self.selectedColor or 
+                         (block.safe and self.safeBlockColor or
+                         (block.disabled and self.disabledColor or
+                         self.originalBlockColor))
             
             if block.selected then
                 table.insert(self.selectedBlocks, {x = x, y = y})
             else
-                -- Remove from selected blocks
                 for i = #self.selectedBlocks, 1, -1 do
                     local selected = self.selectedBlocks[i]
                     if selected.x == x and selected.y == y then
@@ -194,6 +206,78 @@ function GridManager:revertBlocks(blocks)
         if block.previousHighlightState ~= nil then
             block.highlighted = block.previousHighlightState
             block.previousHighlightState = nil
+        end
+    end
+end
+
+function GridManager:placeBarriersAndSafeBlocks(manager)
+    local function isValidPosition(x, y, axolotlX)
+        -- Check if position is within valid range (rows 2-13)
+        if y < 2 or y > 13 then return false end
+        -- Avoid axolotl's spawn column
+        if x == axolotlX then return false end
+        -- Check if position is already occupied
+        if manager.grid[y][x].barrier or manager.grid[y][x].safe then
+            return false
+        end
+        return true
+    end
+
+    -- Axolotl spawns at middle of bottom row
+    local axolotlX = math.floor(manager.width / 2)
+
+    -- Place 10 barriers
+    local barrierTypes = { "horizontal", "vertical", "cross" }
+    local barrierStrengths = { "primary", "weak" }
+    local barriersPlaced = 0
+
+    while barriersPlaced < 10 do
+        local x = love.math.random(1, manager.width)
+        local y = love.math.random(2, 13)
+
+        if isValidPosition(x, y, axolotlX) then
+            local barrierType = barrierTypes[love.math.random(1, #barrierTypes)]
+            local strength = barrierStrengths[love.math.random(1, #barrierStrengths)]
+
+            manager.grid[y][x].barrier = {
+                type = barrierType,
+                strength = strength
+            }
+            manager.grid[y][x].color = strength == "primary" and manager.barrierColor or manager.weakBarrierColor
+
+            -- Apply barrier effects (whitening)
+            if barrierType == "horizontal" or barrierType == "cross" then
+                for ix = 1, manager.width do
+                    if ix ~= x and not manager.grid[y][ix].safe then
+                        manager.grid[y][ix].disabled = true
+                        manager.grid[y][ix].color = manager.disabledColor
+                    end
+                end
+            end
+
+            if barrierType == "vertical" or barrierType == "cross" then
+                for iy = 1, manager.height do
+                    if iy ~= y and not manager.grid[iy][x].safe then
+                        manager.grid[iy][x].disabled = true
+                        manager.grid[iy][x].color = manager.disabledColor
+                    end
+                end
+            end
+
+            barriersPlaced = barriersPlaced + 1
+        end
+    end
+
+    -- Place 10 safe blocks
+    local safeBlocksPlaced = 0
+    while safeBlocksPlaced < 10 do
+        local x = love.math.random(1, manager.width)
+        local y = love.math.random(2, 13)
+
+        if isValidPosition(x, y, axolotlX) then
+            manager.grid[y][x].safe = true
+            manager.grid[y][x].color = manager.safeBlockColor
+            safeBlocksPlaced = safeBlocksPlaced + 1
         end
     end
 end

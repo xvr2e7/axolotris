@@ -6,7 +6,12 @@ local RenderManager = {
         trapBlock = {0.6, 0.4, 0.4},
         highlighted = {0.8, 0.6, 0.6},
         selected = {0.5, 0.5, 0.5},
-        axolotl = { 0.9, 0.5, 0.7 },
+        axolotl = {0.9, 0.5, 0.7},
+        barrier = {0.3, 0.3, 0.3},
+        weakBarrier = {0.4, 0.4, 0.4},
+        disabled = {0.9, 0.9, 0.9},
+        safeBlock = {0.5, 0.8, 0.5},
+        symbol = {1, 1, 1},  -- White color for symbols
         ui = {
             background = {0.15, 0.15, 0.2},
             border = {0.3, 0.3, 0.35},
@@ -59,23 +64,24 @@ function RenderManager:drawGrid(gridManager)
         )
     end
 
-    -- Draw blocks with proper color transitions
-    local currentTime = love.timer.getTime()
+    -- Draw blocks
     for y = 1, self.gridHeight do
         for x = 1, self.gridWidth do
             local block = gridManager.grid[y][x]
             if block then
-                if block.color and block.targetColor then
-                    local progress = (currentTime - block.transitionStart) / block.transitionDuration
-                    if progress < 1 then
-                        -- Interpolate colors
-                        local r = block.color[1] + (block.targetColor[1] - block.color[1]) * progress
-                        local g = block.color[2] + (block.targetColor[2] - block.color[2]) * progress
-                        local b = block.color[3] + (block.targetColor[3] - block.color[3]) * progress
-                        love.graphics.setColor(r, g, b)
-                    else
-                        love.graphics.setColor(block.targetColor)
-                    end
+                -- Calculate block position
+                local blockX = (x-1) * self.gridSize
+                local blockY = (y-1) * self.gridSize
+                
+                -- Draw block background
+                if block.barrier then
+                    love.graphics.setColor(block.barrier.strength == "primary" 
+                        and self.COLORS.barrier 
+                        or self.COLORS.weakBarrier)
+                elseif block.safe then
+                    love.graphics.setColor(self.COLORS.safeBlock)
+                elseif block.disabled then
+                    love.graphics.setColor(self.COLORS.disabled)
                 elseif block.selected then
                     love.graphics.setColor(self.COLORS.selected)
                 elseif block.highlighted then
@@ -85,11 +91,18 @@ function RenderManager:drawGrid(gridManager)
                 end
                 
                 love.graphics.rectangle("fill",
-                    (x-1) * self.gridSize + 1,
-                    (y-1) * self.gridSize + 1,
+                    blockX + 1,
+                    blockY + 1,
                     self.gridSize - 2,
                     self.gridSize - 2
                 )
+                
+                -- Draw barrier symbols or safe block hearts
+                if block.barrier then
+                    self:drawBarrierSymbol(blockX, blockY, block.barrier.type)
+                elseif block.safe then
+                    self:drawHeartSymbol(blockX, blockY)
+                end
             end
         end
     end
@@ -120,6 +133,59 @@ function RenderManager:drawAxolotl(axolotl)
     )
 
     love.graphics.pop()
+end
+function RenderManager:drawBarrierSymbol(x, y, barrierType)
+    local blockSize = self.gridSize
+    local margin = blockSize * 0.2
+    local centerX = x + blockSize / 2
+    local centerY = y + blockSize / 2
+    local size = blockSize * 0.3
+    
+    love.graphics.setColor(self.COLORS.symbol)
+    
+    if barrierType == "horizontal" then
+        -- Draw right-pointing arrow
+        love.graphics.polygon('fill',
+            centerX - size, centerY - size/2,
+            centerX + size, centerY,
+            centerX - size, centerY + size/2
+        )
+    elseif barrierType == "vertical" then
+        -- Draw up-pointing arrow
+        love.graphics.polygon('fill',
+            centerX - size/2, centerY + size,
+            centerX, centerY - size,
+            centerX + size/2, centerY + size
+        )
+    elseif barrierType == "cross" then
+        -- Draw plus sign
+        love.graphics.rectangle('fill',
+            centerX - size/4, centerY - size,
+            size/2, size*2
+        )
+        love.graphics.rectangle('fill',
+            centerX - size, centerY - size/4,
+            size*2, size/2
+        )
+    end
+end
+
+function RenderManager:drawHeartSymbol(x, y)
+    local blockSize = self.gridSize
+    local size = blockSize * 0.2
+    local centerX = x + blockSize / 2
+    local centerY = y + blockSize / 2
+    
+    love.graphics.setColor(self.COLORS.symbol)
+    
+    -- Draw heart shape using circles and triangles
+    love.graphics.circle('fill', centerX - size, centerY - size/2, size)
+    love.graphics.circle('fill', centerX + size, centerY - size/2, size)
+    love.graphics.polygon('fill',
+        centerX - size*1.5, centerY - size/2,
+        centerX + size*1.5, centerY - size/2,
+        centerX, centerY + size*1.5
+    )
 end
 
 return RenderManager
