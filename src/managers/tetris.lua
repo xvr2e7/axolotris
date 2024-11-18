@@ -120,7 +120,7 @@ end
 
 -- Collision detection
 function TetrisManager:checkCollision(piece)
-    if not piece then return false end
+    if not piece or not self.game then return false end
     
     for _, block in ipairs(piece.pattern) do
         local testX = piece.x + block[1]
@@ -132,9 +132,21 @@ function TetrisManager:checkCollision(piece)
             return true
         end
         
-        -- Check block collisions
         local gridBlock = self.game.grid.grid[testY][testX]
-        if gridBlock.barrier or (not gridBlock.safe and gridBlock.disabled) then
+        
+        -- Check for:
+        -- 1. Barrier blocks
+        -- 2. Safe blocks
+        -- 3. Previously locked tetrimino blocks
+        if gridBlock.barrier or
+           gridBlock.safe or 
+           gridBlock.locked then
+            return true
+        end
+        
+        -- Check collision with axolotl position
+        if testX == self.game.axolotl.x and 
+           testY == self.game.axolotl.y then
             return true
         end
     end
@@ -223,7 +235,7 @@ end
 function TetrisManager:lockPiece()
     if not self.activePiece then return end
     
-    -- Transfer piece to grid
+    -- Transfer piece to grid and mark blocks as locked
     for _, block in ipairs(self.activePiece.pattern) do
         local gridX = self.activePiece.x + block[1]
         local gridY = self.activePiece.y + block[2]
@@ -232,7 +244,7 @@ function TetrisManager:lockPiece()
            gridX >= 1 and gridX <= self.game.GRID_WIDTH then
             local gridBlock = self.game.grid.grid[gridY][gridX]
             gridBlock.color = self.activePiece.color
-            gridBlock.locked = true
+            gridBlock.locked = true  -- Mark as locked to enable stacking
         end
     end
     
