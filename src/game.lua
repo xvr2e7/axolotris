@@ -4,6 +4,7 @@ local Render = require('src.managers.render')
 local Input = require('src.managers.input')
 local UI = require('src.managers.ui')
 local Tetris = require('src.managers.tetris')
+local Audio = require('src.managers.audio')
 
 local Game = {
     GRID_SIZE = 32,
@@ -20,6 +21,7 @@ function Game:new()
         render = Render:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
         input = Input:new(self.MOVE_DELAY, self.GRID_SIZE),
         ui = UI:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
+        audio = Audio:new(),
         tetris = nil,  -- Initialize to nil first
         axolotl = {
             x = math.floor(self.GRID_WIDTH / 2),
@@ -28,6 +30,10 @@ function Game:new()
         }
     }
     setmetatable(game, {__index = self})
+    
+    -- Initialize audio
+    game.audio:loadMusic("asset/sound/bottomtheme.ogg")
+    game.audio:play()
     
     -- Create and initialize tetris manager
     game.tetris = Tetris:new()
