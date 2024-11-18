@@ -235,7 +235,6 @@ end
 function TetrisManager:lockPiece()
     if not self.activePiece then return end
     
-    -- Transfer piece to grid and mark blocks as locked
     for _, block in ipairs(self.activePiece.pattern) do
         local gridX = self.activePiece.x + block[1]
         local gridY = self.activePiece.y + block[2]
@@ -244,7 +243,8 @@ function TetrisManager:lockPiece()
            gridX >= 1 and gridX <= self.game.GRID_WIDTH then
             local gridBlock = self.game.grid.grid[gridY][gridX]
             gridBlock.color = self.activePiece.color
-            gridBlock.locked = true  -- Mark as locked to enable stacking
+            gridBlock.tetrisColor = self.activePiece.color  -- Store original tetris color
+            gridBlock.locked = true
         end
     end
     

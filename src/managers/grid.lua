@@ -117,27 +117,27 @@ end
 function GridManager:selectBlock(x, y)
     if self.grid[y] and self.grid[y][x] then
         local block = self.grid[y][x]
-        -- Only allow selection if block is highlighted and not disabled/barrier
-        if block.highlighted and (not block.disabled or block.safe) and not block.barrier then
+        -- Only allow selection if block is highlighted and not barrier
+        if block.highlighted and not block.barrier then
             block.selected = not block.selected
             
-            -- Update color based on block type and state
-            if block.safe then
-                -- For safe blocks, toggle between selected and highlighted/normal colors
-                -- but maintain heart visibility
-                if block.selected then
-                    block.color = self.colors.selected  -- Turn grey when selected
-                else
-                    block.color = block.highlighted and 
-                        self.colors.safeBlockHighlighted or 
-                        self.colors.safeBlock
+            if block.selected then
+                -- Store previous color if not already stored
+                if not block.previousColor then
+                    block.previousColor = block.color
                 end
-                -- Don't change showHeart state - keep it as is
+                block.color = self.colors.selected
             else
-                -- Normal blocks behave as before
-                block.color = block.selected and 
-                    self.colors.selected or 
-                    self.colors.highlighted
+                -- Revert to previous color
+                if block.previousColor then
+                    block.color = block.previousColor
+                    block.previousColor = nil
+                else
+                    -- Fallback to highlighted state color
+                    block.color = block.highlighted and 
+                        self.colors.highlighted or 
+                        self.colors.original
+                end
             end
             
             if block.selected then
@@ -244,22 +244,47 @@ local function isInSpawnProtectedZone(manager, x, y, axolotlX)
 end
 
 function GridManager:placeBarriersAndSafeBlocks(manager)
+    local function isInBufferZone(y)
+        return y <= 7  -- Buffer zone is top 7 rows
+    end
+    
+    local function isInSpawnProtectedZone(x, y, axolotlX)
+        -- Check if position affects the 3x3 spawn area
+        local spawnAreaTop = manager.height - 2
+        local spawnAreaLeft = axolotlX - 1
+        local spawnAreaRight = axolotlX + 1
+
+        -- For horizontal barriers, check row overlap
+        if y >= spawnAreaTop and y <= manager.height then
+            return true
+        end
+        
+        -- For vertical barriers, check column overlap
+        if x >= spawnAreaLeft and x <= spawnAreaRight then
+            return true
+        end
+
+        return false
+    end
+
     local function isValidPosition(x, y, axolotlX)
         -- Check if position is within valid range
         if isInBufferZone(y) then return false end
         if y == manager.height then return false end
         
         -- Check if position is in spawn protected zone
-        if isInSpawnProtectedZone(manager, x, y, axolotlX) then return false end
+        if isInSpawnProtectedZone(x, y, axolotlX) then return false end
         
         -- Check if position is already occupied
-        if manager.grid[y][x].barrier or manager.grid[y][x].safe or manager.grid[y][x].isExit then
+        if manager.grid[y][x].barrier or 
+           manager.grid[y][x].safe or 
+           manager.grid[y][x].isExit then
             return false
         end
         
         return true
     end
-    
+
     -- Axolotl spawns at middle of bottom row
     local axolotlX = math.floor(manager.width / 2)
     
@@ -276,6 +301,7 @@ function GridManager:placeBarriersAndSafeBlocks(manager)
             local barrierType = barrierTypes[love.math.random(1, #barrierTypes)]
             local strength = barrierStrengths[love.math.random(1, #barrierStrengths)]
             
+            -- Set barrier block
             manager.grid[y][x].barrier = {
                 type = barrierType,
                 strength = strength
@@ -284,23 +310,25 @@ function GridManager:placeBarriersAndSafeBlocks(manager)
                                      manager.colors.barrier or 
                                      manager.colors.weakBarrier
             
-            -- Apply barrier effects (whitening)
+            -- Apply barrier field effects
             if barrierType == "horizontal" or barrierType == "cross" then
                 for ix = 1, manager.width do
-                    if ix ~= x and not manager.grid[y][ix].safe and 
-                        not manager.grid[y][ix].barrier and
-                        not isInBufferZone(y) then
+                    if ix ~= x and 
+                       not manager.grid[y][ix].safe and 
+                       not manager.grid[y][ix].barrier and
+                       not isInBufferZone(y) then
                         manager.grid[y][ix].disabled = true
-                        manager.grid[y][ix].color = manager.colors.disabled    
+                        manager.grid[y][ix].color = manager.colors.disabled
                     end
                 end
             end
             
             if barrierType == "vertical" or barrierType == "cross" then
                 for iy = 1, manager.height do
-                    if iy ~= y and not manager.grid[iy][x].safe and
+                    if iy ~= y and 
+                       not manager.grid[iy][x].safe and
                        not manager.grid[iy][x].barrier and
-                        not isInBufferZone(iy) then
+                       not isInBufferZone(iy) then
                         manager.grid[iy][x].disabled = true
                         manager.grid[iy][x].color = manager.colors.disabled
                     end

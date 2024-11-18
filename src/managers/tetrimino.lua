@@ -176,23 +176,32 @@ function TetriminoManager:handleMatchedTetrimino(type, blocks, gridManager)
     local tetriminoColor = self.COLORS[type]
     if not tetriminoColor then return end
     
-    -- Immediately set blocks to tetrimino color
+    -- Store colors and states for reversion
     for _, pos in ipairs(blocks) do
         local block = gridManager.grid[pos.y][pos.x]
-        -- Store original color and state for reversion
-        block.originalColor = block.color
+        block.previousColor = block.color
+        -- If block has a tetris color, store it for later reversion
+        if block.tetrisColor then
+            block.revertToTetrisColor = block.tetrisColor
+        end
         block.wasHighlighted = block.highlighted
-        -- Immediately set to tetrimino color
         block.color = tetriminoColor
     end
     
-    -- Schedule instant reversion after a brief delay
+    -- Schedule reversion after delay
     Timer.after(0.2, function()
         if gridManager and gridManager.revertBlocks then
-            -- Instantly revert each block
             for _, pos in ipairs(blocks) do
                 local block = gridManager.grid[pos.y][pos.x]
-                block.color = block.wasHighlighted and gridManager.colors.highlighted or gridManager.colors.original
+                -- Revert to tetris color if it exists, otherwise normal state
+                if block.revertToTetrisColor then
+                    block.color = block.revertToTetrisColor
+                    block.revertToTetrisColor = nil
+                else
+                    block.color = block.wasHighlighted and 
+                        gridManager.colors.highlighted or 
+                        gridManager.colors.original
+                end
             end
             gridManager:clearBlockSelection(blocks)
         end

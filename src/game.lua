@@ -63,12 +63,13 @@ function Game:isValidPosition(x, y)
         return false
     end
     
-    -- Can't move onto disabled blocks unless they're safe
-    if block.disabled and not block.safe then
-        return false
+    -- Can move onto any non-disabled block
+    -- Can always move onto safe blocks regardless of disabled state
+    if not block.disabled or block.safe then
+        return true
     end
     
-    return true
+    return false
 end
 
 function Game:isInBufferZone(y)
@@ -88,6 +89,8 @@ function Game:moveAxolotl(dx, dy)
                 if not block.selected then
                     if block.safe then
                         block.color = self.grid.colors.safeBlock
+                    elseif block.tetrisColor then
+                        block.color = block.tetrisColor
                     else
                         block.color = self.grid.colors.original
                     end
@@ -96,25 +99,9 @@ function Game:moveAxolotl(dx, dy)
             end
         end
         
-        -- Restore heart on previous position if it was a safe block
-        local currentBlock = self.grid.grid[self.axolotl.y][self.axolotl.x]
-        if currentBlock.safe then
-            currentBlock.showHeart = true
-            currentBlock.color = self.grid.colors.safeBlock
-        end
-        
         -- Update axolotl position
         self.axolotl.x = newX
         self.axolotl.y = newY
-        
-        -- Update new position if it's a safe block
-        local targetBlock = self.grid.grid[newY][newX]
-        if targetBlock.safe then
-            targetBlock.showHeart = false
-            targetBlock.color = targetBlock.highlighted and 
-                self.grid.colors.safeBlockHighlighted or 
-                self.grid.colors.safeBlock
-        end
         
         -- Highlight new adjacent blocks
         local newPositions = self:getReachablePositionsForRotation(self.axolotl.rotation)
@@ -125,6 +112,13 @@ function Game:moveAxolotl(dx, dy)
                 if not block.selected then
                     if block.safe then
                         block.color = self.grid.colors.safeBlockHighlighted
+                    elseif block.tetrisColor and not block.disabled then
+                        -- Create a highlighted version of tetris color
+                        block.color = {
+                            math.min(1, block.tetrisColor[1] + 0.2),
+                            math.min(1, block.tetrisColor[2] + 0.2),
+                            math.min(1, block.tetrisColor[3] + 0.2)
+                        }
                     else
                         block.color = self.grid.colors.highlighted
                     end
