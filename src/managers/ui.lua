@@ -1,5 +1,5 @@
 local UIManager = {
-    SIDEBAR_OFFSET = 32 * 2,
+    SIDEBAR_OFFSET = 32,
     SIDEBAR_WIDTH = 4 * 32,
     ITEM_HEIGHT = 2.5 * 32,
     ITEM_PADDING = 32 * 0.5,
@@ -95,8 +95,9 @@ end
 
 
 function UIManager:drawSidebar(tetriminoManager, renderManager)
-    local sidebarX = -self.sidebarWidth - self.sidebarOffset
-    local sidebarY = 0
+    -- Position sidebar at absolute left edge with small padding
+    local sidebarX = 16  -- Small padding from left edge
+    local sidebarY = (love.graphics.getHeight() - (self.gridHeight * self.gridSize)) / 2  -- Center vertically
     
     -- Draw sidebar background
     renderManager:drawRect(
@@ -119,7 +120,7 @@ function UIManager:drawSidebar(tetriminoManager, renderManager)
     
     -- Draw tetrimino previews and counts
     local itemX = sidebarX + self.itemPadding
-    local itemY = self.itemPadding
+    local itemY = sidebarY + self.itemPadding
     
     for type, pattern in pairs(tetriminoManager.TETRIMINOES) do
         -- Draw preview background

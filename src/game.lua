@@ -311,6 +311,12 @@ function Game:draw()
         self.ui.windowHeight = love.graphics.getHeight()
     end
     
+    -- Draw UI elements in screen space BEFORE translation
+    if self.ui and self.tetrimino and self.render then
+        self.ui:draw(self.tetrimino, self.render)
+    end
+    
+    -- Now handle the centered game grid
     love.graphics.push()
     
     local windowWidth = love.graphics.getWidth()
@@ -340,11 +346,6 @@ function Game:draw()
         if self.render and self.axolotl then
             self.render:drawAxolotl(self.axolotl, self)
         end
-    end
-    
-    -- Draw UI elements
-    if self.ui and self.tetrimino and self.render then
-        self.ui:draw(self.tetrimino, self.render)
     end
     
     love.graphics.pop()
