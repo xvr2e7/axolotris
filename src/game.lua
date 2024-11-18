@@ -3,6 +3,7 @@ local Grid = require('src.managers.grid')
 local Render = require('src.managers.render')
 local Input = require('src.managers.input')
 local UI = require('src.managers.ui')
+local Tetris = require('src.managers.tetris')
 
 local Game = {
     GRID_SIZE = 32,
@@ -19,6 +20,7 @@ function Game:new()
         render = Render:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
         input = Input:new(self.MOVE_DELAY, self.GRID_SIZE),
         ui = UI:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
+        tetris = Tetris:new(),
         -- Create axolotl at the bottom middle of the grid
         axolotl = {
             x = math.floor(self.GRID_WIDTH / 2),
@@ -28,9 +30,17 @@ function Game:new()
     }
     setmetatable(game, {__index = self})
     
+    -- Initialize managers that need game reference
+    game.tetris:init(game)
+
     -- Initialize initial block highlighting
     game:initializeHighlighting()
+
     return game
+end
+
+function Game:handleKeyPressed(key)
+    self.input:handleKeyPressed(key, self)
 end
 
 function Game:isValidPosition(x, y)
@@ -292,13 +302,12 @@ function Game:draw()
     love.graphics.translate(self.windowOffsetX, self.windowOffsetY)
     self.render:drawGrid(self.grid)
     self.render:drawAxolotl(self.axolotl)
-    self.ui:drawSidebar(self.tetrimino, self.render)
+    self.ui:draw(self.tetrimino, self.render)  -- Removed unused tetris parameter
     
-    -- Reset transform before drawing refresh button
     love.graphics.pop()
     
-    -- Draw refresh button in screen space
-    self.ui:drawRefreshButton(self.render)
+    -- Draw screen-space UI elements after pop
+    self.ui:drawScreenUI(self.render, self.tetris)  -- Updated to match new signature
 end
 
 return Game

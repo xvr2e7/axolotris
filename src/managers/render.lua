@@ -15,12 +15,15 @@ local RenderManager = {
         heart = {0.9, 0.2, 0.2},
         symbol = {1, 1, 1},
         exit = {0.8, 0.8, 0.4},
-        default = {0.7, 0.7, 0.7}, -- Fallback color
+        default = {0.7, 0.7, 0.7},
         ui = {
             background = {0.15, 0.15, 0.2},
             border = {0.3, 0.3, 0.35},
             text = {0.9, 0.9, 0.9},
-            shadow = {0.1, 0.1, 0.15, 0.5}
+            shadow = {0.1, 0.1, 0.15, 0.5},
+            modeActive = {0.2, 0.8, 0.2},
+            modeInactive = {0.4, 0.4, 0.4},
+            counter = {0.9, 0.9, 0.9}
         }
     }
 }

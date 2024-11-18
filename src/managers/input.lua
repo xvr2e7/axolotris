@@ -70,4 +70,10 @@ function InputManager:update(dt, game)
     end
 end
 
+function InputManager:handleKeyPressed(key, game)
+    if key == "tab" then
+        game.tetris:tryEnterTetrisMode()
+    end
+end
+
 return InputManager

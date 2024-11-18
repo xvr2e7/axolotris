@@ -75,9 +75,14 @@ function UIManager:drawRefreshButton(renderManager)
     love.graphics.setLineWidth(1)
 end
 
-function UIManager:draw(tetriminoManager, renderManager)
+function UIManager:draw(tetriminoManager, renderManager)  -- Removed unused tetrisManager
+    -- Draw sidebar (in game space)
     self:drawSidebar(tetriminoManager, renderManager)
+end
+
+function UIManager:drawScreenUI(renderManager, tetrisManager)  -- Removed unused tetriminoManager
     self:drawRefreshButton(renderManager)
+    self:drawModeIndicator(tetrisManager, renderManager)
 end
 
 function UIManager:drawSidebar(tetriminoManager, renderManager)
@@ -207,6 +212,87 @@ function UIManager:drawTetriminoCount(count, x, y, renderManager)
         textY,
         renderManager.COLORS.ui.text,
         TEXT_SCALE
+    )
+end
+
+function UIManager:drawModeIndicator(tetrisManager, renderManager)
+    if not tetrisManager then return end
+    
+    local indicatorX = self.windowWidth - self.refreshButtonSize - self.refreshButtonPadding
+    local indicatorY = self.refreshButtonPadding * 2 + self.refreshButtonSize
+    
+    -- Draw mode box
+    renderManager:drawRect(
+        indicatorX,
+        indicatorY,
+        self.refreshButtonSize,
+        self.refreshButtonSize * 0.75,
+        renderManager.COLORS.ui.background
+    )
+    
+    renderManager:drawRect(
+        indicatorX,
+        indicatorY,
+        self.refreshButtonSize,
+        self.refreshButtonSize * 0.75,
+        renderManager.COLORS.ui.border,
+        "line"
+    )
+    
+    -- Draw mode indicators
+    local fontSize = love.graphics.getFont():getHeight()
+    local textY = indicatorY + (self.refreshButtonSize * 0.75 - fontSize) / 2
+    
+    -- Navigation mode indicator
+    love.graphics.setColor(
+        tetrisManager:isInTetrisMode() and 
+        renderManager.COLORS.ui.modeInactive or 
+        renderManager.COLORS.ui.modeActive
+    )
+    love.graphics.print(
+        "N",
+        indicatorX + self.refreshButtonSize * 0.25,
+        textY
+    )
+    
+    -- Tetris mode indicator
+    love.graphics.setColor(
+        tetrisManager:isInTetrisMode() and 
+        renderManager.COLORS.ui.modeActive or 
+        renderManager.COLORS.ui.modeInactive
+    )
+    love.graphics.print(
+        "T",
+        indicatorX + self.refreshButtonSize * 0.6,
+        textY
+    )
+    
+    -- Draw session counter
+    local counterY = indicatorY + self.refreshButtonSize * 0.75 + self.refreshButtonPadding
+    renderManager:drawRect(
+        indicatorX,
+        counterY,
+        self.refreshButtonSize,
+        self.refreshButtonSize * 0.5,
+        renderManager.COLORS.ui.background
+    )
+    
+    renderManager:drawRect(
+        indicatorX,
+        counterY,
+        self.refreshButtonSize,
+        self.refreshButtonSize * 0.5,
+        renderManager.COLORS.ui.border,
+        "line"
+    )
+    
+    love.graphics.setColor(renderManager.COLORS.ui.counter)
+    -- Format counter as "X/10"
+    local counterText = string.format("%d/10", tetrisManager.sessionCount)
+    love.graphics.print(
+        counterText,
+        indicatorX + (self.refreshButtonSize - love.graphics.getFont():getWidth(counterText)) / 2,
+        counterY + (self.refreshButtonSize * 0.5 - fontSize) / 2
     )
 end
 

@@ -31,7 +31,11 @@ function love.draw()
 end
 
 function love.mousepressed(x, y, button)
-    if button == 1 then  -- Left click
+    if button == 1 then -- Left click
         game:handleMouseClick(x, y)
     end
+end
+
+function love.keypressed(key)
+    game:handleKeyPressed(key)
 end
