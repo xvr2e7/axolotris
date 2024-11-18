@@ -1,4 +1,5 @@
 local RenderManager = {
+    -- Previous color definitions remain unchanged...
     COLORS = {
         background = {0.1, 0.1, 0.15},
         grid = {0.2, 0.2, 0.25},
@@ -16,6 +17,7 @@ local RenderManager = {
         symbol = {1, 1, 1},
         exit = {0.8, 0.8, 0.4},
         default = {0.7, 0.7, 0.7},
+        tetrisGhost = {1, 1, 1, 0.2},  -- New color for ghost piece
         ui = {
             background = {0.15, 0.15, 0.2},
             border = {0.3, 0.3, 0.35},
@@ -49,14 +51,22 @@ function RenderManager:drawText(text, x, y, color, scale)
     love.graphics.print(text, x, y, 0, scale or 1, scale or 1)
 end
 
-function RenderManager:drawGrid(gridManager)
+function RenderManager:drawGrid(gridManager, tetrisManager)
+    if not gridManager then return end
+    
+    -- Safely check tetris mode
+    local inTetrisMode = false
+    if tetrisManager and tetrisManager.isInTetrisMode then
+        inTetrisMode = tetrisManager:isInTetrisMode()
+    end
+    
     -- Draw background
     self:setColor(self.COLORS.background)
     love.graphics.rectangle("fill", 0, 0,
         self.gridWidth * self.gridSize,
         self.gridHeight * self.gridSize)
     
-    -- First pass: Draw all non-portal blocks and regular grid lines
+    -- First pass: Draw non-portal blocks
     for y = 1, self.gridHeight do
         for x = 1, self.gridWidth do
             local block = gridManager.grid[y][x]
@@ -64,20 +74,44 @@ function RenderManager:drawGrid(gridManager)
                 local blockX = (x-1) * self.gridSize
                 local blockY = (y-1) * self.gridSize
                 
-                -- Safely set block color
-                self:setColor(block.color)
-                love.graphics.rectangle("fill",
-                    blockX + 1,
-                    blockY + 1,
-                    self.gridSize - 2,
-                    self.gridSize - 2
-                )
-                
-                -- Draw symbols
-                if block.barrier then
-                    self:drawBarrierSymbol(blockX, blockY, block.barrier.type)
-                elseif block.safe and block.showHeart then
-                    self:drawPixelHeart(blockX, blockY)
+                -- In Tetris mode, don't draw highlighted/selected states in buffer zone
+                if inTetrisMode and tetrisManager.game and 
+                   y <= tetrisManager.game.BUFFER_ZONE_HEIGHT then
+                    if not block.locked then
+                        -- Draw empty block in buffer zone
+                        self:setColor(self.COLORS.background)
+                        love.graphics.rectangle("fill",
+                            blockX + 1,
+                            blockY + 1,
+                            self.gridSize - 2,
+                            self.gridSize - 2
+                        )
+                    else
+                        -- Draw locked tetris blocks
+                        self:setColor(block.color)
+                        love.graphics.rectangle("fill",
+                            blockX + 1,
+                            blockY + 1,
+                            self.gridSize - 2,
+                            self.gridSize - 2
+                        )
+                    end
+                else
+                    -- Draw normal block
+                    self:setColor(block.color)
+                    love.graphics.rectangle("fill",
+                        blockX + 1,
+                        blockY + 1,
+                        self.gridSize - 2,
+                        self.gridSize - 2
+                    )
+                    
+                    -- Draw block symbols
+                    if block.barrier then
+                        self:drawBarrierSymbol(blockX, blockY, block.barrier.type)
+                    elseif block.safe and block.showHeart then
+                        self:drawPixelHeart(blockX, blockY)
+                    end
                 end
             end
         end
@@ -99,7 +133,7 @@ function RenderManager:drawGrid(gridManager)
         )
     end
     
-    -- Second pass: Draw exit portal
+    -- Draw exit portal
     for y = 1, self.gridHeight do
         for x = 1, self.gridWidth do
             local block = gridManager.grid[y][x]
@@ -108,6 +142,49 @@ function RenderManager:drawGrid(gridManager)
                     self:drawExitPortal((x-1) * self.gridSize, (y-1) * self.gridSize)
                     break
                 end
+            end
+        end
+    end
+    
+    -- Draw Tetris pieces if in Tetris mode
+    if inTetrisMode and tetrisManager then
+        -- Draw ghost piece
+        if tetrisManager.ghostPiece then
+            for _, block in ipairs(tetrisManager.ghostPiece.pattern) do
+                local x = (tetrisManager.ghostPiece.x + block[1] - 1) * self.gridSize
+                local y = (tetrisManager.ghostPiece.y + block[2] - 1) * self.gridSize
+                
+                -- Draw semi-transparent ghost block
+                self:setColor({
+                    tetrisManager.ghostPiece.color[1],
+                    tetrisManager.ghostPiece.color[2],
+                    tetrisManager.ghostPiece.color[3],
+                    0.3
+                })
+                love.graphics.rectangle(
+                    'fill',
+                    x + 1,
+                    y + 1,
+                    self.gridSize - 2,
+                    self.gridSize - 2
+                )
+            end
+        end
+        
+        -- Draw active piece
+        if tetrisManager.activePiece then
+            for _, block in ipairs(tetrisManager.activePiece.pattern) do
+                local x = (tetrisManager.activePiece.x + block[1] - 1) * self.gridSize
+                local y = (tetrisManager.activePiece.y + block[2] - 1) * self.gridSize
+                
+                self:setColor(tetrisManager.activePiece.color)
+                love.graphics.rectangle(
+                    'fill',
+                    x + 1,
+                    y + 1,
+                    self.gridSize - 2,
+                    self.gridSize - 2
+                )
             end
         end
     end

@@ -20,8 +20,7 @@ function Game:new()
         render = Render:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
         input = Input:new(self.MOVE_DELAY, self.GRID_SIZE),
         ui = UI:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
-        tetris = Tetris:new(),
-        -- Create axolotl at the bottom middle of the grid
+        tetris = nil,  -- Initialize to nil first
         axolotl = {
             x = math.floor(self.GRID_WIDTH / 2),
             y = self.GRID_HEIGHT,
@@ -30,12 +29,20 @@ function Game:new()
     }
     setmetatable(game, {__index = self})
     
-    -- Initialize managers that need game reference
-    game.tetris:init(game)
-
+    -- Create and initialize tetris manager
+    game.tetris = Tetris:new()
+    if game.tetris then
+        game.tetris:init(game)
+    end
+    
+    -- Initialize other managers that need game reference
+    if game.input and game.input.init then
+        game.input:init(game)
+    end
+    
     -- Initialize initial block highlighting
     game:initializeHighlighting()
-
+    
     return game
 end
 
@@ -285,8 +292,10 @@ end
 
 function Game:draw()
     -- Update window dimensions in UI manager
-    self.ui.windowWidth = love.graphics.getWidth()
-    self.ui.windowHeight = love.graphics.getHeight()
+    if self.ui then
+        self.ui.windowWidth = love.graphics.getWidth()
+        self.ui.windowHeight = love.graphics.getHeight()
+    end
     
     love.graphics.push()
     
@@ -300,14 +309,36 @@ function Game:draw()
     
     -- Draw grid and game elements with offset
     love.graphics.translate(self.windowOffsetX, self.windowOffsetY)
-    self.render:drawGrid(self.grid)
-    self.render:drawAxolotl(self.axolotl)
-    self.ui:draw(self.tetrimino, self.render)  -- Removed unused tetris parameter
+    
+    -- Draw grid with Tetris state
+    if self.render and self.grid then
+        self.render:drawGrid(self.grid, self.tetris)
+    end
+    
+    -- Safely check tetris mode before deciding whether to draw axolotl
+    local inTetrisMode = false
+    if self.tetris and self.tetris.isInTetrisMode then
+        inTetrisMode = self.tetris:isInTetrisMode()
+    end
+    
+    -- Only draw axolotl in navigation mode
+    if not inTetrisMode then
+        if self.render and self.axolotl then
+            self.render:drawAxolotl(self.axolotl)
+        end
+    end
+    
+    -- Draw UI elements
+    if self.ui and self.tetrimino and self.render then
+        self.ui:draw(self.tetrimino, self.render)
+    end
     
     love.graphics.pop()
     
     -- Draw screen-space UI elements after pop
-    self.ui:drawScreenUI(self.render, self.tetris)  -- Updated to match new signature
+    if self.ui and self.render and self.tetris then
+        self.ui:drawScreenUI(self.render, self.tetris)
+    end
 end
 
 return Game
