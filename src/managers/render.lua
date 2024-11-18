@@ -12,9 +12,10 @@ local RenderManager = {
         disabled = {0.9, 0.9, 0.9, 0.7},
         safeBlock = {0.5, 0.8, 0.5},
         safeBlockSelected = {0.4, 0.7, 0.4},
-        heart = {0.9, 0.2, 0.2},  -- Red heart
-        symbol = {1, 1, 1},  -- White for other symbols
-        exit = {0.8, 0.8, 0.4},  -- Yellow-ish for exit
+        heart = {0.9, 0.2, 0.2},
+        symbol = {1, 1, 1},
+        exit = {0.8, 0.8, 0.4},
+        default = {0.7, 0.7, 0.7}, -- Fallback color
         ui = {
             background = {0.15, 0.15, 0.2},
             border = {0.3, 0.3, 0.35},
@@ -47,7 +48,7 @@ end
 
 function RenderManager:drawGrid(gridManager)
     -- Draw background
-    love.graphics.setColor(self.COLORS.background)
+    self:setColor(self.COLORS.background)
     love.graphics.rectangle("fill", 0, 0,
         self.gridWidth * self.gridSize,
         self.gridHeight * self.gridSize)
@@ -60,8 +61,8 @@ function RenderManager:drawGrid(gridManager)
                 local blockX = (x-1) * self.gridSize
                 local blockY = (y-1) * self.gridSize
                 
-                -- Draw regular block background
-                love.graphics.setColor(block.color)
+                -- Safely set block color
+                self:setColor(block.color)
                 love.graphics.rectangle("fill",
                     blockX + 1,
                     blockY + 1,
@@ -79,27 +80,15 @@ function RenderManager:drawGrid(gridManager)
         end
     end
     
-    -- Draw grid lines, skipping the portal area
-    love.graphics.setColor(self.COLORS.gridLine)
-    
-    -- Draw vertical lines
+    -- Draw grid lines
+    self:setColor(self.COLORS.gridLine)
     for x = 0, self.gridWidth do
-        local skipLine = false
-        -- Check if this line would be between exit blocks
-        local exitX = math.floor(self.gridWidth / 2)
-        if x > exitX - 1 and x < exitX + 2 then
-            skipLine = true
-        end
-        
-        if not skipLine then
-            love.graphics.line(
-                x * self.gridSize, 0,
-                x * self.gridSize, self.gridHeight * self.gridSize
-            )
-        end
+        love.graphics.line(
+            x * self.gridSize, 0,
+            x * self.gridSize, self.gridHeight * self.gridSize
+        )
     end
     
-    -- Draw horizontal lines
     for y = 0, self.gridHeight do
         love.graphics.line(
             0, y * self.gridSize,
@@ -107,15 +96,14 @@ function RenderManager:drawGrid(gridManager)
         )
     end
     
-    -- Second pass: Draw the portal last
+    -- Second pass: Draw exit portal
     for y = 1, self.gridHeight do
         for x = 1, self.gridWidth do
             local block = gridManager.grid[y][x]
             if block and block.isExit then
-                -- Only draw exit portal once for the leftmost exit block
                 if not gridManager.grid[y][x-1] or not gridManager.grid[y][x-1].isExit then
                     self:drawExitPortal((x-1) * self.gridSize, (y-1) * self.gridSize)
-                    break  -- Exit after drawing the portal once
+                    break
                 end
             end
         end
@@ -280,5 +268,21 @@ function RenderManager:drawBarrierSymbol(x, y, barrierType)
         )
     end
 end
+
+function RenderManager:setColor(color)
+    -- If color is nil or invalid, use default color
+    if not color or type(color) ~= "table" or #color < 3 then
+        color = self.COLORS.default
+    end
+    
+    -- Ensure we have valid numeric values
+    local r = tonumber(color[1]) or self.COLORS.default[1]
+    local g = tonumber(color[2]) or self.COLORS.default[2]
+    local b = tonumber(color[3]) or self.COLORS.default[3]
+    local a = tonumber(color[4]) or 1 -- Default alpha to 1 if not specified
+    
+    love.graphics.setColor(r, g, b, a)
+end
+
 
 return RenderManager

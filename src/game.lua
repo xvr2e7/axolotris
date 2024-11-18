@@ -83,16 +83,20 @@ function Game:moveAxolotl(dx, dy)
         local currentBlock = self.grid.grid[self.axolotl.y][self.axolotl.x]
         if currentBlock.safe then
             currentBlock.showHeart = true
+            currentBlock.color = self.grid.colors.safeBlock
         end
         
         -- Update axolotl position
         self.axolotl.x = newX
         self.axolotl.y = newY
         
-        -- Hide heart on new position if it's a safe block
+        -- Update new position if it's a safe block
         local targetBlock = self.grid.grid[newY][newX]
         if targetBlock.safe then
             targetBlock.showHeart = false
+            targetBlock.color = targetBlock.highlighted and 
+                self.grid.colors.safeBlockHighlighted or 
+                self.grid.colors.safeBlock
         end
         
         -- Highlight new adjacent blocks

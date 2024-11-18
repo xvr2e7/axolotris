@@ -123,9 +123,21 @@ function GridManager:selectBlock(x, y)
             
             -- Update color based on block type and state
             if block.safe then
-                block.color = block.selected and self.colors.safeBlockSelected or self.colors.safeBlockHighlighted
+                -- For safe blocks, toggle between selected and highlighted/normal colors
+                -- but maintain heart visibility
+                if block.selected then
+                    block.color = self.colors.selected  -- Turn grey when selected
+                else
+                    block.color = block.highlighted and 
+                        self.colors.safeBlockHighlighted or 
+                        self.colors.safeBlock
+                end
+                -- Don't change showHeart state - keep it as is
             else
-                block.color = block.selected and self.colors.selected or self.colors.highlighted
+                -- Normal blocks behave as before
+                block.color = block.selected and 
+                    self.colors.selected or 
+                    self.colors.highlighted
             end
             
             if block.selected then
