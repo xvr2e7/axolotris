@@ -22,13 +22,27 @@ function Game:new()
         input = Input:new(self.MOVE_DELAY, self.GRID_SIZE),
         ui = UI:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
         audio = Audio:new(),
-        tetris = nil,  -- Initialize to nil first
+        tetris = nil,
         axolotl = {
             x = math.floor(self.GRID_WIDTH / 2),
             y = self.GRID_HEIGHT,
             rotation = 0
+        },
+        sprites = {
+            axolotl = {
+                up = love.graphics.newImage("asset/sprites/axolotl/up.png"),
+                down = love.graphics.newImage("asset/sprites/axolotl/down.png"),
+                left = love.graphics.newImage("asset/sprites/axolotl/left.png"),
+                right = love.graphics.newImage("asset/sprites/axolotl/right.png")
+            }
         }
     }
+    
+    -- Set pixel art scaling
+    for _, sprite in pairs(game.sprites.axolotl) do
+        sprite:setFilter("nearest", "nearest")
+    end
+    
     setmetatable(game, {__index = self})
     
     -- Initialize audio
@@ -324,7 +338,7 @@ function Game:draw()
     -- Only draw axolotl in navigation mode
     if not inTetrisMode then
         if self.render and self.axolotl then
-            self.render:drawAxolotl(self.axolotl)
+            self.render:drawAxolotl(self.axolotl, self)
         end
     end
     

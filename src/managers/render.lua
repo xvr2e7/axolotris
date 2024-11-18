@@ -235,31 +235,28 @@ function RenderManager:drawGrid(gridManager, tetrisManager)
     end
 end
 
-function RenderManager:drawAxolotl(axolotl)
-    love.graphics.setColor(self.COLORS.axolotl)
-    love.graphics.push()
-    love.graphics.translate(
-        (axolotl.x - 0.5) * self.gridSize,
-        (axolotl.y - 0.5) * self.gridSize
-    )
-    love.graphics.rotate(math.rad(axolotl.rotation))
+function RenderManager:drawAxolotl(axolotl, game)
+   if not game or not game.sprites or not game.sprites.axolotl then return end
 
-    -- Main body
-    love.graphics.rectangle("fill",
-        -self.gridSize / 3,
-        -self.gridSize / 3,
-        self.gridSize * 2 / 3,
-        self.gridSize * 2 / 3
-    )
-
-    -- Direction indicator
-    love.graphics.polygon("fill",
-        0, -self.gridSize / 3,
-        self.gridSize / 4, 0,
-        -self.gridSize / 4, 0
-    )
-
-    love.graphics.pop()
+   local direction = "down"
+   if axolotl.rotation == 0 then direction = "up"
+   elseif axolotl.rotation == 90 then direction = "right"
+   elseif axolotl.rotation == 270 then direction = "left"
+   end
+   
+   love.graphics.setColor(1, 1, 1)
+   local sprite = game.sprites.axolotl[direction]
+   
+   -- Scale sprite to fit grid cell while maintaining aspect ratio
+   local scale = (self.gridSize * 0.8) / sprite:getWidth() -- Using 80% of grid size
+   
+   -- Center the sprite in the grid cell
+   local spriteWidth = sprite:getWidth() * scale
+   local spriteHeight = sprite:getHeight() * scale
+   local x = (axolotl.x - 1) * self.gridSize + (self.gridSize - spriteWidth) / 2
+   local y = (axolotl.y - 1) * self.gridSize + (self.gridSize - spriteHeight) / 2
+   
+   love.graphics.draw(sprite, x, y, 0, scale, scale)
 end
 
 function RenderManager:drawPixelHeart(x, y)
