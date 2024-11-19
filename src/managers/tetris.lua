@@ -56,35 +56,48 @@ function TetrisManager:canEnterTetrisMode()
 end
 
 function TetrisManager:tryEnterTetrisMode()
-    if self:canEnterTetrisMode() then
-        self.currentMode = self.MODES.TETRIS
-        self.sessionCount = self.sessionCount + 1
-        
-        -- Create randomized piece queue from available tetriminoes
-        self.pieceQueue = {}
-        for type, count in pairs(self.game.tetrimino.tetriminoCounts) do
-            for i = 1, count do
-                table.insert(self.pieceQueue, type)
-            end
-        end
-        
-        -- Randomize queue order
-        for i = #self.pieceQueue, 2, -1 do
-            local j = love.math.random(i)
-            self.pieceQueue[i], self.pieceQueue[j] = self.pieceQueue[j], self.pieceQueue[i]
-        end
-        
-        -- Clear tetrimino counts
-        for type, _ in pairs(self.game.tetrimino.tetriminoCounts) do
-            self.game.tetrimino.tetriminoCounts[type] = 0
-        end
-        
-        -- Spawn first piece
-        self:spawnNextPiece()
-        
-        return true
+    -- Check if we can enter tetris mode
+    if not self:canEnterTetrisMode() then
+        return false
     end
-    return false
+    
+    -- Increment session counter
+    self.sessionCount = self.sessionCount + 1
+    
+    -- Check if trying to start 11th session
+    if self.sessionCount > 10 then
+        self.sessionCount = self.sessionCount - 1
+        if self.game and self.game.handleLoss then
+            self.game:handleLoss("no_more_sessions")
+        end
+        return false
+    end
+    
+    self.currentMode = self.MODES.TETRIS
+    
+    -- Create randomized piece queue from available tetriminoes
+    self.pieceQueue = {}
+    for type, count in pairs(self.game.tetrimino.tetriminoCounts) do
+        for i = 1, count do
+            table.insert(self.pieceQueue, type)
+        end
+    end
+    
+    -- Randomize queue order
+    for i = #self.pieceQueue, 2, -1 do
+        local j = love.math.random(i)
+        self.pieceQueue[i], self.pieceQueue[j] = self.pieceQueue[j], self.pieceQueue[i]
+    end
+    
+    -- Clear tetrimino counts
+    for type, _ in pairs(self.game.tetrimino.tetriminoCounts) do
+        self.game.tetrimino.tetriminoCounts[type] = 0
+    end
+    
+    -- Spawn first piece
+    self:spawnNextPiece()
+    
+    return true
 end
 
 -- Piece spawning
@@ -441,13 +454,13 @@ end
 function TetrisManager:lockPiece()
     if not self.activePiece then return end
 
-    -- Transfer piece to grid
+    -- Lock piece to grid first
     for _, block in ipairs(self.activePiece.pattern) do
         local gridX = self.activePiece.x + block[1]
         local gridY = self.activePiece.y + block[2]
 
         if gridY >= 1 and gridY <= self.game.GRID_HEIGHT and
-            gridX >= 1 and gridX <= self.game.GRID_WIDTH then
+           gridX >= 1 and gridX <= self.game.GRID_WIDTH then
             local gridBlock = self.game.grid.grid[gridY][gridX]
             gridBlock.color = self.activePiece.color
             gridBlock.tetrisColor = self.activePiece.color
@@ -462,8 +475,24 @@ function TetrisManager:lockPiece()
     -- Check for line clears
     self:checkLineClears()
 
-    -- Spawn next piece
-    self:spawnNextPiece()
+    -- Check for classic Tetris loss condition - pieces reaching the very top
+    local causesLoss = false
+    for x = 1, self.game.GRID_WIDTH do
+        if self.game.grid.grid[1][x].locked then
+            causesLoss = true
+            break
+        end
+    end
+
+    if causesLoss then
+        -- Trigger game over
+        if self.game.handleLoss then
+            self.game:handleLoss()
+        end
+    else
+        -- Spawn next piece only if game isn't over
+        self:spawnNextPiece()
+    end
 end
 
 function TetrisManager:exitTetrisMode()

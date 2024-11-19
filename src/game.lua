@@ -11,7 +11,13 @@ local Game = {
     GRID_WIDTH = 12,
     GRID_HEIGHT = 21,
     MOVE_DELAY = 0.15,
-    BUFFER_ZONE_HEIGHT = 7
+    BUFFER_ZONE_HEIGHT = 7,
+    GAME_STATES = {
+        PLAYING = "playing",
+        PAUSED = "paused", 
+        VICTORY = "victory",
+        LOSS = "loss"
+    }
 }
 
 function Game:new()
@@ -42,7 +48,13 @@ function Game:new()
             }
         },
         
-        -- Add pause menu state
+        -- Game state tracking
+        gameState = Game.GAME_STATES.PLAYING,
+        messageBoxState = {
+            isButtonHovered = false
+        },
+        
+        -- Pause menu state
         isPaused = false,
         pauseMenu = {
             isResumeHovered = false,
@@ -80,10 +92,22 @@ function Game:new()
 end
 
 function Game:togglePause()
-    self.isPaused = not self.isPaused
+    if self.gameState == self.GAME_STATES.PLAYING then
+        self.gameState = self.GAME_STATES.PAUSED
+        self.isPaused = true
+    elseif self.gameState == self.GAME_STATES.PAUSED then
+        self.gameState = self.GAME_STATES.PLAYING
+        self.isPaused = false
+    end
 end
 
 function Game:handleKeyPressed(key)
+    -- Don't handle input if game is over
+    if self.gameState == self.GAME_STATES.VICTORY or 
+       self.gameState == self.GAME_STATES.LOSS then
+        return
+    end
+    
     self.input:handleKeyPressed(key, self)
 end
 
@@ -114,6 +138,9 @@ function Game:isInBufferZone(y)
 end
 
 function Game:moveAxolotl(dx, dy)
+    -- Don't allow movement if game isn't in playing state
+    if self.gameState ~= self.GAME_STATES.PLAYING then return end
+    
     local newX = self.axolotl.x + dx
     local newY = self.axolotl.y + dy
     
@@ -171,6 +198,9 @@ function Game:moveAxolotl(dx, dy)
 end
 
 function Game:rotateAxolotl()
+    -- Don't allow rotation if game isn't in playing state
+    if self.gameState ~= self.GAME_STATES.PLAYING then return end
+    
     -- Reset previously indicated blocks
     local oldPositions = self:getReachablePositionsForRotation(self.axolotl.rotation)
     for _, pos in ipairs(oldPositions) do
@@ -261,7 +291,7 @@ function Game:refresh()
     -- Create new instances of all managers
     self.tetrimino = Tetrimino:new()
     self.grid = Grid:new(self.GRID_WIDTH, self.GRID_HEIGHT)
-    self.tetris = Tetris:new()  -- Add this line to reset tetris manager
+    self.tetris = Tetris:new()
     
     -- Reset axolotl position
     self.axolotl = {
@@ -270,6 +300,10 @@ function Game:refresh()
         rotation = 0
     }
 
+    -- Reset game state
+    self.gameState = self.GAME_STATES.PLAYING
+    self.isPaused = false
+    
     -- Initialize tetris manager with game reference
     if self.tetris then
         self.tetris:init(self)
@@ -277,6 +311,54 @@ function Game:refresh()
     
     -- Reinitialize highlighting
     self:initializeHighlighting()
+end
+
+function Game:handleVictory()
+    if self.gameState == self.GAME_STATES.PLAYING then
+        self.gameState = self.GAME_STATES.VICTORY
+    end
+end
+
+function Game:handleLoss(reason)
+    if self.gameState == self.GAME_STATES.PLAYING then
+        self.gameState = self.GAME_STATES.LOSS
+        self.lossReason = reason
+    end
+end
+
+
+function Game:updateMessageBox(x, y)
+    if self.gameState ~= self.GAME_STATES.PLAYING and 
+       self.gameState ~= self.GAME_STATES.PAUSED then
+        -- Calculate button position
+        local boxX = (love.graphics.getWidth() - self.ui.MESSAGE_BOX_WIDTH) / 2
+        local boxY = (love.graphics.getHeight() - self.ui.MESSAGE_BOX_HEIGHT) / 2
+        local buttonX = boxX + (self.ui.MESSAGE_BOX_WIDTH - self.ui.MESSAGE_BUTTON_WIDTH) / 2
+        local buttonY = boxY + self.ui.MESSAGE_BOX_HEIGHT - self.ui.MESSAGE_BUTTON_HEIGHT - self.ui.MESSAGE_PADDING
+        
+        -- Update hover state
+        self.messageBoxState.isButtonHovered = 
+            x >= buttonX and x <= buttonX + self.ui.MESSAGE_BUTTON_WIDTH and
+            y >= buttonY and y <= buttonY + self.ui.MESSAGE_BUTTON_HEIGHT
+    end
+end
+
+function Game:handleMessageBoxClick(x, y)
+    if self.gameState ~= self.GAME_STATES.PLAYING and
+        self.gameState ~= self.GAME_STATES.PAUSED then
+        -- Calculate button position
+        local boxX = (love.graphics.getWidth() - self.ui.MESSAGE_BOX_WIDTH) / 2
+        local boxY = (love.graphics.getHeight() - self.ui.MESSAGE_BOX_HEIGHT) / 2
+        local buttonX = boxX + (self.ui.MESSAGE_BOX_WIDTH - self.ui.MESSAGE_BUTTON_WIDTH) / 2
+        local buttonY = boxY + self.ui.MESSAGE_BOX_HEIGHT - self.ui.MESSAGE_BUTTON_HEIGHT - self.ui.MESSAGE_PADDING
+
+        -- Check if click is within button
+        if x >= buttonX and x <= buttonX + self.ui.MESSAGE_BUTTON_WIDTH and
+            y >= buttonY and y <= buttonY + self.ui.MESSAGE_BUTTON_HEIGHT then
+            -- Reset game
+            self:refresh()
+        end
+    end
 end
 
 function Game:handlePauseMenuClick(x, y)
@@ -312,27 +394,6 @@ function Game:handlePauseMenuClick(x, y)
     end
 end
 
-function Game:handleMouseClick(screenX, screenY)
-    -- First convert screen coordinates to grid coordinates
-    local gridX, gridY = self:screenToGridCoords(screenX, screenY)
-    
-    if self:isValidPosition(gridX, gridY) then
-        local block = self.grid.grid[gridY][gridX]
-        if block.highlighted then
-            if self.grid:selectBlock(gridX, gridY) then
-                local selectedBlocks = self.grid:getLargestConnectedGroup()
-                
-                if #selectedBlocks == 4 then
-                    local tetriminoType = self.tetrimino:detectTetrimino(selectedBlocks)
-                    if tetriminoType then
-                        self.tetrimino:handleMatchedTetrimino(tetriminoType, selectedBlocks, self.grid)
-                    end
-                end
-            end
-        end
-    end
-end
-
 function Game:updatePauseMenu(x, y)
     if not self.isPaused then return end
     
@@ -362,6 +423,43 @@ function Game:updatePauseMenu(x, y)
         y >= restartY and y <= restartY + buttonHeight
 end
 
+function Game:handleMouseClick(screenX, screenY)
+    -- Handle message box clicks first
+    if self.gameState == self.GAME_STATES.VICTORY or 
+       self.gameState == self.GAME_STATES.LOSS then
+        self:handleMessageBoxClick(screenX, screenY)
+        return
+    end
+    
+    -- Handle pause menu clicks
+    if self.isPaused then
+        self:handlePauseMenuClick(screenX, screenY)
+        return
+    end
+    
+    -- Only handle grid clicks if game is active
+    if self.gameState == self.GAME_STATES.PLAYING then
+        -- Convert screen coordinates to grid coordinates
+        local gridX, gridY = self:screenToGridCoords(screenX, screenY)
+        
+        if self:isValidPosition(gridX, gridY) then
+            local block = self.grid.grid[gridY][gridX]
+            if block.highlighted then
+                if self.grid:selectBlock(gridX, gridY) then
+                    local selectedBlocks = self.grid:getLargestConnectedGroup()
+                    
+                    if #selectedBlocks == 4 then
+                        local tetriminoType = self.tetrimino:detectTetrimino(selectedBlocks)
+                        if tetriminoType then
+                            self.tetrimino:handleMatchedTetrimino(tetriminoType, selectedBlocks, self.grid)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
 function Game:screenToGridCoords(screenX, screenY)
     local windowWidth = love.graphics.getWidth()
     local windowHeight = love.graphics.getHeight()
@@ -377,17 +475,14 @@ function Game:screenToGridCoords(screenX, screenY)
     return gridX, gridY
 end
 
-function Game:handleVictory()
-    print("Victory! The axolotl has escaped!")
-end
-
 function Game:update(dt)
     -- Handle pause menu hover states
     local mouseX, mouseY = love.mouse.getPosition()
     self:updatePauseMenu(mouseX, mouseY)
+    self:updateMessageBox(mouseX, mouseY)
     
-    -- Don't update game state if paused
-    if self.isPaused then return end
+    -- Don't update game state if not playing
+    if self.gameState ~= self.GAME_STATES.PLAYING then return end
     
     self.input:update(dt, self)
 end
@@ -443,9 +538,36 @@ function Game:draw()
         self.ui:drawScreenUI(self.render, self.tetris)
     end
     
-    -- Draw pause menu overlay last (if paused)
+    -- Draw pause menu overlay if paused
     if self.ui and self.isPaused then
         self.ui:drawPauseMenu(self, self.render)
+    end
+    
+    -- Draw victory/loss message boxes if needed
+    if self.gameState == self.GAME_STATES.VICTORY then
+        self.ui:drawMessageBox(
+            "Freedom At Last! Thanks for playing!",
+            "Concept, Programming, Design: Ziyan Xie\nMusic: Sihui Lin",
+            "Play Again",
+            self.messageBoxState.isButtonHovered
+        )
+    elseif self.gameState == self.GAME_STATES.LOSS then
+        if self.lossReason == "no_more_sessions" then
+            self.ui:drawMessageBox(
+                "Transformation Power Depleted!",
+                "Our axolotl can no longer transform blocks...\nStill trapped in the cycle!",
+                "Try Again",
+                self.messageBoxState.isButtonHovered
+            )
+        else
+            -- This is the classic tetris stack-too-high loss
+            self.ui:drawMessageBox(
+                "Blocks Overflowing!",
+                "Our axolotl got trapped by their own tetrimino towers!\nTime to rethink the escape plan...",
+                "Try Again",
+                self.messageBoxState.isButtonHovered
+            )
+        end
     end
 end
 

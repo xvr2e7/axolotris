@@ -102,6 +102,15 @@ function InputManager:handleKeyPressed(key, game)
         return
     end
     
+    -- Debug hotkey for instant victory testing
+    if key == "v" then
+        -- Move axolotl to middle of top row (exit position)
+        game.axolotl.x = math.floor(game.GRID_WIDTH / 2)
+        game.axolotl.y = 1
+        -- This will trigger victory check on next update
+        return
+    end
+    
     -- Don't handle other inputs if game is paused
     if game.isPaused then return end
     

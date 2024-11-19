@@ -5,7 +5,12 @@ local UIManager = {
     ITEM_PADDING = 32 * 0.5,
     PREVIEW_SCALE = 0.4,
     MODE_INDICATOR_SIZE = 32,
-    SCREEN_PADDING = 16
+    SCREEN_PADDING = 16,
+    MESSAGE_BOX_WIDTH = 300,
+    MESSAGE_BOX_HEIGHT = 200,
+    MESSAGE_PADDING = 20,
+    MESSAGE_BUTTON_WIDTH = 160,
+    MESSAGE_BUTTON_HEIGHT = 40  
 }
 
 function UIManager:new(gridWidth, gridHeight, gridSize)
@@ -354,6 +359,101 @@ function UIManager:drawModeIndicator(tetrisManager, renderManager)
             counterY + (self.modeIndicatorSize * 0.5 - fontSize) / 2
         )
     end
+end
+
+function UIManager:drawMessageBox(title, message, buttonText, isButtonHovered)
+    -- Draw semi-transparent overlay
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.rectangle('fill', 0, 0, self.windowWidth, self.windowHeight)
+    
+    -- Calculate message box dimensions
+    local font = love.graphics.getFont()
+    local messageLines = {}
+    for line in message:gmatch("([^\n]*)\n?") do
+        table.insert(messageLines, line)
+    end
+    
+    -- Calculate required width for text
+    local maxTextWidth = 0
+    for _, line in ipairs(messageLines) do
+        maxTextWidth = math.max(maxTextWidth, font:getWidth(line))
+    end
+    maxTextWidth = math.max(maxTextWidth, font:getWidth(title))
+    
+    -- Ensure minimum box width while allowing for larger text
+    local boxWidth = math.max(self.MESSAGE_BOX_WIDTH, maxTextWidth + self.MESSAGE_PADDING * 3)
+    
+    -- Calculate box height based on content
+    local lineHeight = font:getHeight() * 1.2 -- Add some line spacing
+    local messageHeight = lineHeight * #messageLines
+    local boxHeight = self.MESSAGE_PADDING * 4 + -- top and bottom padding
+                     lineHeight + -- title height
+                     messageHeight + -- message height
+                     self.MESSAGE_BUTTON_HEIGHT -- button height
+    
+    -- Calculate positions
+    local boxX = (self.windowWidth - boxWidth) / 2
+    local boxY = (self.windowHeight - boxHeight) / 2
+    
+    -- Draw message box background
+    love.graphics.setColor(0.15, 0.15, 0.2)
+    love.graphics.rectangle('fill', 
+        boxX, boxY, 
+        boxWidth, 
+        boxHeight
+    )
+    
+    -- Draw border
+    love.graphics.setColor(0.3, 0.3, 0.35)
+    love.graphics.rectangle('line',
+        boxX, boxY,
+        boxWidth,
+        boxHeight
+    )
+    
+    -- Draw title
+    love.graphics.setColor(0.9, 0.9, 0.9)
+    local titleX = boxX + (boxWidth - font:getWidth(title)) / 2
+    local titleY = boxY + self.MESSAGE_PADDING
+    love.graphics.print(title, titleX, titleY)
+    
+    -- Draw message text
+    local messageY = titleY + lineHeight + self.MESSAGE_PADDING
+    for _, line in ipairs(messageLines) do
+        local lineX = boxX + (boxWidth - font:getWidth(line)) / 2
+        love.graphics.print(line, lineX, messageY)
+        messageY = messageY + lineHeight
+    end
+    
+    -- Draw button
+    local buttonWidth = self.MESSAGE_BUTTON_WIDTH
+    local buttonX = boxX + (boxWidth - buttonWidth) / 2
+    local buttonY = boxY + boxHeight - self.MESSAGE_BUTTON_HEIGHT - self.MESSAGE_PADDING
+    
+    if isButtonHovered then
+        love.graphics.setColor(0.3, 0.6, 0.3)
+    else
+        love.graphics.setColor(0.15, 0.15, 0.2)
+    end
+    
+    love.graphics.rectangle('fill',
+        buttonX, buttonY,
+        buttonWidth,
+        self.MESSAGE_BUTTON_HEIGHT
+    )
+    
+    love.graphics.setColor(0.3, 0.3, 0.35)
+    love.graphics.rectangle('line',
+        buttonX, buttonY,
+        buttonWidth,
+        self.MESSAGE_BUTTON_HEIGHT
+    )
+    
+    -- Draw button text
+    love.graphics.setColor(0.9, 0.9, 0.9)
+    local buttonTextX = buttonX + (buttonWidth - font:getWidth(buttonText)) / 2
+    local buttonTextY = buttonY + (self.MESSAGE_BUTTON_HEIGHT - font:getHeight()) / 2
+    love.graphics.print(buttonText, buttonTextX, buttonTextY)
 end
 
 return UIManager
