@@ -94,16 +94,28 @@ function InputManager:handleMouseClick(x, y, game)
 end
 
 function InputManager:handleKeyPressed(key, game)
-    if not game or not game.tetris then return end
+    if not game then return end
     
+    -- Handle escape key for pause menu
+    if key == "escape" then
+        game:togglePause()
+        return
+    end
+    
+    -- Don't handle other inputs if game is paused
+    if game.isPaused then return end
+    
+    -- Handle tab key for tetris mode switching
     if key == "tab" then
-        game.tetris:tryEnterTetrisMode()
+        if game.tetris then
+            game.tetris:tryEnterTetrisMode()
+        end
         return
     end
     
     -- Safely check for tetris mode
     local inTetrisMode = false
-    if game.tetris.isInTetrisMode then
+    if game.tetris and game.tetris.isInTetrisMode then
         inTetrisMode = game.tetris:isInTetrisMode()
     end
     

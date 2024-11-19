@@ -4,8 +4,8 @@ local UIManager = {
     ITEM_HEIGHT = 2.5 * 32,
     ITEM_PADDING = 32 * 0.5,
     PREVIEW_SCALE = 0.4,
-    REFRESH_BUTTON_SIZE = 32,
-    REFRESH_BUTTON_PADDING = 16
+    MODE_INDICATOR_SIZE = 32,
+    SCREEN_PADDING = 16
 }
 
 function UIManager:new(gridWidth, gridHeight, gridSize)
@@ -13,66 +13,18 @@ function UIManager:new(gridWidth, gridHeight, gridSize)
         gridWidth = gridWidth,
         gridHeight = gridHeight,
         gridSize = gridSize,
-        -- Calculate derived values
         sidebarOffset = gridSize * 2,
         sidebarWidth = gridSize * 4,
         itemHeight = gridSize * 2.5,
         itemPadding = gridSize * 0.5,
         previewScale = 0.4,
-        refreshButtonSize = gridSize,
-        refreshButtonPadding = gridSize * 0.5,
-        -- Store window dimensions for refresh button positioning
+        modeIndicatorSize = gridSize,
+        screenPadding = gridSize * 0.5,
         windowWidth = love.graphics.getWidth(),
         windowHeight = love.graphics.getHeight()
     }
     setmetatable(manager, {__index = self})
     return manager
-end
-
-function UIManager:isRefreshButtonClicked(x, y)
-    -- Account for the actual screen position
-    local buttonX = self.windowWidth - self.refreshButtonSize - self.refreshButtonPadding
-    local buttonY = self.refreshButtonPadding
-    
-    return x >= buttonX and x <= buttonX + self.refreshButtonSize and
-           y >= buttonY and y <= buttonY + self.refreshButtonSize
-end
-
-function UIManager:drawRefreshButton(renderManager)
-    local buttonX = self.windowWidth - self.refreshButtonSize - self.refreshButtonPadding
-    local buttonY = self.refreshButtonPadding
-    
-    -- Draw button background
-    renderManager:drawRect(
-        buttonX,
-        buttonY,
-        self.refreshButtonSize,
-        self.refreshButtonSize,
-        renderManager.COLORS.ui.background
-    )
-    
-    -- Draw button border
-    renderManager:drawRect(
-        buttonX,
-        buttonY,
-        self.refreshButtonSize,
-        self.refreshButtonSize,
-        renderManager.COLORS.ui.border,
-        "line"
-    )
-    
-    -- Draw simple circle in the center
-    love.graphics.setColor(renderManager.COLORS.ui.text)
-    love.graphics.setLineWidth(2)
-    
-    local centerX = buttonX + self.refreshButtonSize / 2
-    local centerY = buttonY + self.refreshButtonSize / 2
-    local radius = self.refreshButtonSize * 0.3
-    
-    love.graphics.circle('line', centerX, centerY, radius)
-    
-    -- Reset line width
-    love.graphics.setLineWidth(1)
 end
 
 function UIManager:draw(tetriminoManager, renderManager)  -- Removed unused tetrisManager
@@ -84,15 +36,104 @@ function UIManager:drawScreenUI(renderManager, tetrisManager)
     -- Safety check for render manager
     if not renderManager then return end
     
-    -- Draw refresh button
-    self:drawRefreshButton(renderManager)
-    
-    -- Safely draw mode indicator if tetris manager exists
+    -- draw mode indicator
     if tetrisManager then
         self:drawModeIndicator(tetrisManager, renderManager)
     end
 end
 
+function UIManager:drawPauseMenu(game, renderManager)
+    if not game.isPaused then return end
+    
+    -- Draw semi-transparent overlay
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.rectangle('fill', 0, 0, self.windowWidth, self.windowHeight)
+    
+    -- Menu panel dimensions
+    local menuWidth = 200
+    local menuHeight = 150
+    local menuX = (self.windowWidth - menuWidth) / 2
+    local menuY = (self.windowHeight - menuHeight) / 2
+    
+    -- Draw menu background
+    renderManager:drawRect(
+        menuX, menuY,
+        menuWidth, menuHeight,
+        renderManager.COLORS.ui.background
+    )
+    
+    -- Draw menu border
+    renderManager:drawRect(
+        menuX, menuY,
+        menuWidth, menuHeight,
+        renderManager.COLORS.ui.border,
+        "line"
+    )
+    
+    -- Draw "PAUSED" text
+    local font = love.graphics.getFont()
+    local pausedText = "PAUSED"
+    local textWidth = font:getWidth(pausedText)
+    renderManager:drawText(
+        pausedText,
+        menuX + (menuWidth - textWidth) / 2,
+        menuY + 10,
+        renderManager.COLORS.ui.text
+    )
+    
+    -- Button dimensions
+    local buttonWidth = 160
+    local buttonHeight = 40
+    local buttonX = menuX + (menuWidth - buttonWidth) / 2
+    
+    -- Draw Resume button
+    local resumeY = menuY + 40
+    local resumeColor = game.pauseMenu.isResumeHovered and
+        {0.3, 0.6, 0.3} or renderManager.COLORS.ui.background
+    renderManager:drawRect(
+        buttonX, resumeY,
+        buttonWidth, buttonHeight,
+        resumeColor
+    )
+    renderManager:drawRect(
+        buttonX, resumeY,
+        buttonWidth, buttonHeight,
+        renderManager.COLORS.ui.border,
+        "line"
+    )
+    local resumeText = "Resume"
+    local resumeTextWidth = font:getWidth(resumeText)
+    renderManager:drawText(
+        resumeText,
+        buttonX + (buttonWidth - resumeTextWidth) / 2,
+        resumeY + (buttonHeight - font:getHeight()) / 2,
+        renderManager.COLORS.ui.text
+    )
+    
+    -- Draw Restart button
+    local restartY = resumeY + buttonHeight + 20
+    local restartColor = game.pauseMenu.isRestartHovered and
+        {0.6, 0.3, 0.3} or renderManager.COLORS.ui.background
+    renderManager:drawRect(
+        buttonX, restartY,
+        buttonWidth, buttonHeight,
+        restartColor
+    )
+    renderManager:drawRect(
+        buttonX, restartY,
+        buttonWidth, buttonHeight,
+        renderManager.COLORS.ui.border,
+        "line"
+    )
+    local restartText = "Restart"
+    local restartTextWidth = font:getWidth(restartText)
+    renderManager:drawText(
+        restartText,
+        buttonX + (buttonWidth - restartTextWidth) / 2,
+        restartY + (buttonHeight - font:getHeight()) / 2,
+        renderManager.COLORS.ui.text
+    )
+end
 
 function UIManager:drawSidebar(tetriminoManager, renderManager)
     -- Position sidebar at absolute left edge with small padding
@@ -229,30 +270,31 @@ function UIManager:drawModeIndicator(tetrisManager, renderManager)
     -- Safety checks
     if not tetrisManager or not renderManager then return end
     
-    local indicatorX = self.windowWidth - self.refreshButtonSize - self.refreshButtonPadding
-    local indicatorY = self.refreshButtonPadding * 2 + self.refreshButtonSize
+    -- Position mode indicator in top right with new measurements
+    local indicatorX = self.windowWidth - self.modeIndicatorSize - self.screenPadding
+    local indicatorY = self.screenPadding
     
     -- Draw mode box
     renderManager:drawRect(
         indicatorX,
         indicatorY,
-        self.refreshButtonSize,
-        self.refreshButtonSize * 0.75,
+        self.modeIndicatorSize,
+        self.modeIndicatorSize * 0.75,
         renderManager.COLORS.ui.background
     )
     
     renderManager:drawRect(
         indicatorX,
         indicatorY,
-        self.refreshButtonSize,
-        self.refreshButtonSize * 0.75,
+        self.modeIndicatorSize,
+        self.modeIndicatorSize * 0.75,
         renderManager.COLORS.ui.border,
         "line"
     )
     
     -- Draw mode indicators
     local fontSize = love.graphics.getFont():getHeight()
-    local textY = indicatorY + (self.refreshButtonSize * 0.75 - fontSize) / 2
+    local textY = indicatorY + (self.modeIndicatorSize * 0.75 - fontSize) / 2
     
     -- Safely check tetris mode
     local inTetrisMode = false
@@ -268,7 +310,7 @@ function UIManager:drawModeIndicator(tetrisManager, renderManager)
     )
     love.graphics.print(
         "N",
-        indicatorX + self.refreshButtonSize * 0.25,
+        indicatorX + self.modeIndicatorSize * 0.25,
         textY
     )
     
@@ -280,37 +322,36 @@ function UIManager:drawModeIndicator(tetrisManager, renderManager)
     )
     love.graphics.print(
         "T",
-        indicatorX + self.refreshButtonSize * 0.6,
+        indicatorX + self.modeIndicatorSize * 0.6,
         textY
     )
     
     -- Draw session counter if available
     if tetrisManager.sessionCount then
-        local counterY = indicatorY + self.refreshButtonSize * 0.75 + self.refreshButtonPadding
+        local counterY = indicatorY + self.modeIndicatorSize * 0.75 + self.screenPadding
         renderManager:drawRect(
             indicatorX,
             counterY,
-            self.refreshButtonSize,
-            self.refreshButtonSize * 0.5,
+            self.modeIndicatorSize,
+            self.modeIndicatorSize * 0.5,
             renderManager.COLORS.ui.background
         )
         
         renderManager:drawRect(
             indicatorX,
             counterY,
-            self.refreshButtonSize,
-            self.refreshButtonSize * 0.5,
+            self.modeIndicatorSize,
+            self.modeIndicatorSize * 0.5,
             renderManager.COLORS.ui.border,
             "line"
         )
         
         love.graphics.setColor(renderManager.COLORS.ui.counter)
-        -- Format counter as "X/10"
         local counterText = string.format("%d/10", tetrisManager.sessionCount)
         love.graphics.print(
             counterText,
-            indicatorX + (self.refreshButtonSize - love.graphics.getFont():getWidth(counterText)) / 2,
-            counterY + (self.refreshButtonSize * 0.5 - fontSize) / 2
+            indicatorX + (self.modeIndicatorSize - love.graphics.getFont():getWidth(counterText)) / 2,
+            counterY + (self.modeIndicatorSize * 0.5 - fontSize) / 2
         )
     end
 end

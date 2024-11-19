@@ -16,18 +16,23 @@ local Game = {
 
 function Game:new()
     local game = {
+        -- Initialize all managers
         tetrimino = Tetrimino:new(),
         grid = Grid:new(self.GRID_WIDTH, self.GRID_HEIGHT),
         render = Render:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
         input = Input:new(self.MOVE_DELAY, self.GRID_SIZE),
         ui = UI:new(self.GRID_WIDTH, self.GRID_HEIGHT, self.GRID_SIZE),
         audio = Audio:new(),
-        tetris = nil,
+        tetris = nil,  -- Will be initialized after game object creation
+        
+        -- Initial axolotl position and orientation
         axolotl = {
             x = math.floor(self.GRID_WIDTH / 2),
             y = self.GRID_HEIGHT,
             rotation = 0
         },
+        
+        -- Load axolotl sprites
         sprites = {
             axolotl = {
                 up = love.graphics.newImage("asset/sprites/axolotl/up.png"),
@@ -35,15 +40,23 @@ function Game:new()
                 left = love.graphics.newImage("asset/sprites/axolotl/left.png"),
                 right = love.graphics.newImage("asset/sprites/axolotl/right.png")
             }
+        },
+        
+        -- Add pause menu state
+        isPaused = false,
+        pauseMenu = {
+            isResumeHovered = false,
+            isRestartHovered = false
         }
     }
     
-    -- Set pixel art scaling
+    -- Set metatable to inherit from Game class
+    setmetatable(game, {__index = self})
+    
+    -- Configure sprite rendering (pixel art scaling)
     for _, sprite in pairs(game.sprites.axolotl) do
         sprite:setFilter("nearest", "nearest")
     end
-    
-    setmetatable(game, {__index = self})
     
     -- Initialize audio
     game.audio:loadMusic("asset/sound/bottomtheme.ogg")
@@ -55,7 +68,7 @@ function Game:new()
         game.tetris:init(game)
     end
     
-    -- Initialize other managers that need game reference
+    -- Initialize input manager with game reference
     if game.input and game.input.init then
         game.input:init(game)
     end
@@ -64,6 +77,10 @@ function Game:new()
     game:initializeHighlighting()
     
     return game
+end
+
+function Game:togglePause()
+    self.isPaused = not self.isPaused
 end
 
 function Game:handleKeyPressed(key)
@@ -244,24 +261,59 @@ function Game:refresh()
     -- Create new instances of all managers
     self.tetrimino = Tetrimino:new()
     self.grid = Grid:new(self.GRID_WIDTH, self.GRID_HEIGHT)
+    self.tetris = Tetris:new()  -- Add this line to reset tetris manager
+    
     -- Reset axolotl position
     self.axolotl = {
         x = math.floor(self.GRID_WIDTH / 2),
         y = self.GRID_HEIGHT,
         rotation = 0
     }
+
+    -- Initialize tetris manager with game reference
+    if self.tetris then
+        self.tetris:init(self)
+    end
+    
     -- Reinitialize highlighting
     self:initializeHighlighting()
 end
 
-function Game:handleMouseClick(screenX, screenY)
-    -- Check if refresh button was clicked (using raw screen coordinates)
-    if self.ui:isRefreshButtonClicked(screenX, screenY) then
-        self:refresh()
-        return
+function Game:handlePauseMenuClick(x, y)
+    if not self.isPaused then return end
+    
+    local windowWidth = love.graphics.getWidth()
+    local windowHeight = love.graphics.getHeight()
+    
+    -- Calculate menu dimensions and position
+    local menuWidth = 200
+    local menuHeight = 150
+    local menuX = (windowWidth - menuWidth) / 2
+    local menuY = (windowHeight - menuHeight) / 2
+    
+    -- Button dimensions
+    local buttonWidth = 160
+    local buttonHeight = 40
+    local buttonX = menuX + (menuWidth - buttonWidth) / 2
+    
+    -- Resume button
+    local resumeY = menuY + 40
+    if x >= buttonX and x <= buttonX + buttonWidth and
+       y >= resumeY and y <= resumeY + buttonHeight then
+        self:togglePause()
     end
     
-    -- Convert to grid coordinates for grid interaction
+    -- Restart button
+    local restartY = resumeY + buttonHeight + 20
+    if x >= buttonX and x <= buttonX + buttonWidth and
+       y >= restartY and y <= restartY + buttonHeight then
+        self:refresh()
+        self:togglePause()
+    end
+end
+
+function Game:handleMouseClick(screenX, screenY)
+    -- First convert screen coordinates to grid coordinates
     local gridX, gridY = self:screenToGridCoords(screenX, screenY)
     
     if self:isValidPosition(gridX, gridY) then
@@ -279,6 +331,35 @@ function Game:handleMouseClick(screenX, screenY)
             end
         end
     end
+end
+
+function Game:updatePauseMenu(x, y)
+    if not self.isPaused then return end
+    
+    local windowWidth = love.graphics.getWidth()
+    local windowHeight = love.graphics.getHeight()
+    
+    -- Calculate menu dimensions and position
+    local menuWidth = 200
+    local menuHeight = 150
+    local menuX = (windowWidth - menuWidth) / 2
+    local menuY = (windowHeight - menuHeight) / 2
+    
+    -- Button dimensions
+    local buttonWidth = 160
+    local buttonHeight = 40
+    local buttonX = menuX + (menuWidth - buttonWidth) / 2
+    
+    -- Update hover states
+    local resumeY = menuY + 40
+    self.pauseMenu.isResumeHovered = 
+        x >= buttonX and x <= buttonX + buttonWidth and
+        y >= resumeY and y <= resumeY + buttonHeight
+    
+    local restartY = resumeY + buttonHeight + 20
+    self.pauseMenu.isRestartHovered = 
+        x >= buttonX and x <= buttonX + buttonWidth and
+        y >= restartY and y <= restartY + buttonHeight
 end
 
 function Game:screenToGridCoords(screenX, screenY)
@@ -301,6 +382,13 @@ function Game:handleVictory()
 end
 
 function Game:update(dt)
+    -- Handle pause menu hover states
+    local mouseX, mouseY = love.mouse.getPosition()
+    self:updatePauseMenu(mouseX, mouseY)
+    
+    -- Don't update game state if paused
+    if self.isPaused then return end
+    
     self.input:update(dt, self)
 end
 
@@ -353,6 +441,11 @@ function Game:draw()
     -- Draw screen-space UI elements after pop
     if self.ui and self.render and self.tetris then
         self.ui:drawScreenUI(self.render, self.tetris)
+    end
+    
+    -- Draw pause menu overlay last (if paused)
+    if self.ui and self.isPaused then
+        self.ui:drawPauseMenu(self, self.render)
     end
 end
 

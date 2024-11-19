@@ -32,7 +32,17 @@ end
 
 function love.mousepressed(x, y, button)
     if button == 1 then -- Left click
-        game:handleMouseClick(x, y)
+        if not game then return end  -- Safety check for game object
+        
+        if game.isPaused then
+            if game.handlePauseMenuClick then  -- Safety check for method
+                game:handlePauseMenuClick(x, y)
+            end
+        else
+            if game.handleMouseClick then  -- Safety check for method
+                game:handleMouseClick(x, y)
+            end
+        end
     end
 end
 
