@@ -1,14 +1,8 @@
-# Axolotris
+# Axolotris (A Submission to Studio Jam 2024)
 
 ## Core Concept
 
 A strategic block manipulation game where a clever axolotl must engineer its own escape by transforming surrounding blocks into tetriminoes. By inverting the traditional Tetris formula, players actively create their pieces before using them to break free from their blocky prison.
-
-## Jam Theme Integration: Breaking the Cycle
-
-- **Mechanical Break:** Instead of passively reacting to falling pieces, players strategically craft and collect tetriminoes
-- **Strategic Break:** Two distinct gameplay modes break the traditional single-loop structure
-- **Narrative Break:** An imprisoned axolotl uses its environment to break free, transforming barriers into tools for escape
 
 ## Core Mechanics
 
@@ -145,68 +139,6 @@ Line Clear:
 [■][■][■][■] Extended barrier field damage
 ```
 
-## Level Design System
-
-### Barrier Placement Rules
-
-- Must leave valid solution path
-- Minimum 2 blocks between barriers
-- Maximum 4 barriers of same type per level
-- Fields cannot completely block progress
-- Buffer zone must remain barrier-free
-- Safe blocks must be accessible from start
-
-### Progressive Difficulty
-
-**Level 1: Fundamentals**
-
-- Single barrier types
-- Clear paths between fields
-- Basic mechanics introduction
-- Generous safe block placement
-
-**Level 2: Mixed Barriers**
-
-- Multiple barrier types
-- Simple field intersections
-- Resource management
-- Limited safe blocks
-
-**Level 3: Complex Fields**
-
-- Complex barrier patterns
-- Multiple field overlaps
-- Strategic clearing required
-- Minimal safe blocks
-
-## Development Priorities
-
-### Phase 1 (Core - MVP)
-
-- 12x21 grid implementation
-- Basic movement and collision
-- Simple barrier and field system
-- Mode switching
-- Exit condition
-
-### Phase 2 (Essential Features)
-
-- Barrier strength types
-- Field projections
-- Breaking mechanics
-- Static safe blocks
-- Visual feedback
-
-### Phase 3 (Polish & Optional)
-
-- Special combinations
-- Power-up safe zones
-- Visual effects
-- Sound implementation
-- Level designs
-
-## Art Requirements
-
 ### Essential Assets
 
 - Axolotl (4 rotations)
@@ -215,27 +147,3 @@ Line Clear:
 - Safe blocks
 - Exit blocks
 - Field effect indicators
-
-### Optional Assets
-
-- Power-up items
-- Special effect animations
-- Background elements
-- UI elements for modes
-
-## Sound Design
-
-### Essential SFX
-
-- Movement
-- Block selection
-- Barrier break
-- Line clear
-- Mode switch
-
-### Optional SFX
-
-- Power-up collection
-- Special combinations
-- Ambient effects
-- Music tracks
