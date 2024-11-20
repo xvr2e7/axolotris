@@ -65,7 +65,7 @@ function Game:new()
     -- Set metatable to inherit from Game class
     setmetatable(game, {__index = self})
     
-    -- Configure sprite rendering (pixel art scaling)
+    -- Configure sprite rendering
     for _, sprite in pairs(game.sprites.axolotl) do
         sprite:setFilter("nearest", "nearest")
     end
@@ -494,7 +494,7 @@ function Game:draw()
         self.ui.windowHeight = love.graphics.getHeight()
     end
     
-    -- Draw UI elements in screen space BEFORE translation
+    -- Draw UI elements in screen space
     if self.ui and self.tetrimino and self.render then
         self.ui:draw(self.tetrimino, self.render)
     end
@@ -543,7 +543,7 @@ function Game:draw()
         self.ui:drawPauseMenu(self, self.render)
     end
     
-    -- Draw victory/loss message boxes if needed
+    -- Draw victory/loss message boxes
     if self.gameState == self.GAME_STATES.VICTORY then
         self.ui:drawMessageBox(
             "Freedom At Last! Thanks for playing!",
@@ -560,7 +560,7 @@ function Game:draw()
                 self.messageBoxState.isButtonHovered
             )
         else
-            -- This is the classic tetris stack-too-high loss
+            -- Classic tetris stack-too-high loss
             self.ui:drawMessageBox(
                 "Blocks Overflowing!",
                 "Our axolotl got trapped by their own tetrimino towers!\nTime to rethink the escape plan...",

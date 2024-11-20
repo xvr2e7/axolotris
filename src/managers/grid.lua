@@ -14,7 +14,7 @@ function GridManager:new(width, height)
             weakBarrier = {0.4, 0.4, 0.4},
             safeBlock = {0.5, 0.8, 0.5},
             safeBlockSelected = {0.4, 0.7, 0.4},
-            disabled = {0.9, 0.9, 0.9, 0.7}, -- More transparent
+            disabled = {0.9, 0.9, 0.9, 0.7},
             exit = {0.8, 0.8, 0.4}
         }
     }
@@ -202,7 +202,7 @@ function GridManager:startBlockTransition(blocks, targetColor)
         block.originalColor = block.color
         block.targetColor = targetColor
         block.transitionStart = currentTime
-        block.transitionDuration = 0.2 -- Faster transition for better feedback
+        block.transitionDuration = 0.2
         
         -- Store selection and highlight state
         block.wasHighlighted = block.highlighted
@@ -218,29 +218,6 @@ function GridManager:revertBlocks(blocks)
         block.transitionStart = currentTime
         block.transitionDuration = 0.2
     end
-end
-
-local function isInBufferZone(y)
-    return y <= 7
-end
-
-local function isInSpawnProtectedZone(manager, x, y, axolotlX)
-    -- Check if position affects the 3x3 spawn area
-    local spawnAreaTop = manager.height - 2
-    local spawnAreaLeft = axolotlX - 1
-    local spawnAreaRight = axolotlX + 1
-
-    -- For horizontal barriers, check row overlap
-    if y >= spawnAreaTop and y <= manager.height then
-        return true
-    end
-    
-    -- For vertical barriers, check column overlap
-    if x >= spawnAreaLeft and x <= spawnAreaRight then
-        return true
-    end
-
-    return false
 end
 
 function GridManager:placeBarriersAndSafeBlocks(manager)

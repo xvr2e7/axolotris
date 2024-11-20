@@ -141,9 +141,9 @@ function UIManager:drawPauseMenu(game, renderManager)
 end
 
 function UIManager:drawSidebar(tetriminoManager, renderManager)
-    -- Position sidebar at absolute left edge with small padding
+    
     local sidebarX = 16  -- Small padding from left edge
-    local sidebarY = (love.graphics.getHeight() - (self.gridHeight * self.gridSize)) / 2  -- Center vertically
+    local sidebarY = (love.graphics.getHeight() - (self.gridHeight * self.gridSize)) / 2
     
     -- Draw sidebar background
     renderManager:drawRect(
@@ -384,12 +384,12 @@ function UIManager:drawMessageBox(title, message, buttonText, isButtonHovered)
     local boxWidth = math.max(self.MESSAGE_BOX_WIDTH, maxTextWidth + self.MESSAGE_PADDING * 3)
     
     -- Calculate box height based on content
-    local lineHeight = font:getHeight() * 1.2 -- Add some line spacing
+    local lineHeight = font:getHeight() * 1.2
     local messageHeight = lineHeight * #messageLines
-    local boxHeight = self.MESSAGE_PADDING * 4 + -- top and bottom padding
-                     lineHeight + -- title height
-                     messageHeight + -- message height
-                     self.MESSAGE_BUTTON_HEIGHT -- button height
+    local boxHeight = self.MESSAGE_PADDING * 4 +
+                     lineHeight +
+                     messageHeight +
+                     self.MESSAGE_BUTTON_HEIGHT
     
     -- Calculate positions
     local boxX = (self.windowWidth - boxWidth) / 2
