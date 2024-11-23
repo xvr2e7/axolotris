@@ -151,15 +151,11 @@ function TetrisManager:checkCollision(piece)
         -- 1. Barrier blocks
         -- 2. Safe blocks
         -- 3. Previously locked tetrimino blocks
+        -- 4. Axolotl position
         if gridBlock.barrier or
            gridBlock.safe or 
-           gridBlock.locked then
-            return true
-        end
-        
-        -- Check collision with axolotl position
-        if testX == self.game.axolotl.x and 
-           testY == self.game.axolotl.y then
+           gridBlock.locked or
+           (testX == self.game.axolotl.x and testY == self.game.axolotl.y) then
             return true
         end
     end
