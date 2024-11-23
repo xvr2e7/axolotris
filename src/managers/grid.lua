@@ -122,22 +122,31 @@ function GridManager:selectBlock(x, y)
             block.selected = not block.selected
             
             if block.selected then
-                -- Store previous color if not already stored
-                if not block.previousColor then
-                    block.previousColor = block.color
-                end
+                -- Store current color before changing to selected color
+                block.previousColor = block.color
                 block.color = self.colors.selected
             else
-                -- Revert to previous color
-                if block.previousColor then
-                    block.color = block.previousColor
-                    block.previousColor = nil
+                -- When deselecting, restore the appropriate color
+                if block.locked and block.tetrisColor then
+                    -- For locked tetris blocks, restore tetris color
+                    block.color = block.tetrisColor
+                elseif block.highlighted then
+                    -- For highlighted blocks, use highlighted state
+                    if block.locked and block.tetrisColor then
+                        -- Create highlighted version of tetris color
+                        block.color = {
+                            math.min(1, block.tetrisColor[1] + 0.2),
+                            math.min(1, block.tetrisColor[2] + 0.2),
+                            math.min(1, block.tetrisColor[3] + 0.2)
+                        }
+                    else
+                        block.color = self.colors.highlighted
+                    end
                 else
-                    -- Fallback to highlighted state color
-                    block.color = block.highlighted and 
-                        self.colors.highlighted or 
-                        self.colors.original
+                    -- Otherwise restore original color
+                    block.color = block.previousColor or self.colors.original
                 end
+                block.previousColor = nil
             end
             
             if block.selected then
@@ -186,8 +195,27 @@ function GridManager:clearBlockSelection(blocks)
         if not blockLookup[key] then
             table.insert(newSelectedBlocks, selected)
         else
-            -- Clear selection state for this block
-            self.grid[selected.y][selected.x].selected = false
+            -- Clear selection state and restore appropriate color
+            local block = self.grid[selected.y][selected.x]
+            block.selected = false
+            
+            -- Restore color based on block state
+            if block.locked and block.tetrisColor then
+                if block.highlighted then
+                    -- Create highlighted version of tetris color
+                    block.color = {
+                        math.min(1, block.tetrisColor[1] + 0.2),
+                        math.min(1, block.tetrisColor[2] + 0.2),
+                        math.min(1, block.tetrisColor[3] + 0.2)
+                    }
+                else
+                    block.color = block.tetrisColor
+                end
+            else
+                block.color = block.highlighted and 
+                            self.colors.highlighted or 
+                            self.colors.original
+            end
         end
     end
     
