@@ -95,9 +95,17 @@ function Game:togglePause()
     if self.gameState == self.GAME_STATES.PLAYING then
         self.gameState = self.GAME_STATES.PAUSED
         self.isPaused = true
+        -- Pause audio when entering pause state
+        if self.audio then
+            self.audio:pause()
+        end
     elseif self.gameState == self.GAME_STATES.PAUSED then
         self.gameState = self.GAME_STATES.PLAYING
         self.isPaused = false
+        -- Resume audio when leaving pause state
+        if self.audio then
+            self.audio:resume()
+        end
     end
 end
 
@@ -382,6 +390,7 @@ function Game:handlePauseMenuClick(x, y)
     local resumeY = menuY + 40
     if x >= buttonX and x <= buttonX + buttonWidth and
        y >= resumeY and y <= resumeY + buttonHeight then
+        
         self:togglePause()
     end
     
@@ -389,8 +398,10 @@ function Game:handlePauseMenuClick(x, y)
     local restartY = resumeY + buttonHeight + 20
     if x >= buttonX and x <= buttonX + buttonWidth and
        y >= restartY and y <= restartY + buttonHeight then
+        if self.audio then
+            self.audio:restart()
+        end
         self:refresh()
-        self:togglePause()
     end
 end
 
