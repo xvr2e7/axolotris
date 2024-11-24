@@ -7,7 +7,8 @@ function InputManager:new(moveDelay, gridSize)
         lastMove = 0,
         moveDelay = moveDelay or 0.15,
         gridSize = gridSize or 32,
-        game = nil
+        game = nil,
+        ignoreHeldKeys = false  -- New flag to handle mode transitions
     }
     setmetatable(manager, { __index = self })
     return manager
@@ -143,6 +144,14 @@ function InputManager:handleKeyPressed(key, game)
     end
 end
 
+function InputManager:setIgnoreHeldKeys(ignore)
+    self.ignoreHeldKeys = ignore
+    -- Reset lastMove to prevent immediate movement
+    if ignore then
+        self.lastMove = 0
+    end
+end
+
 function InputManager:update(dt, game)
     if not game then return end
     
@@ -163,8 +172,8 @@ function InputManager:update(dt, game)
             game.tetris:update(dt)
         end
     else
-        -- Handle Navigation mode movement
-        if self.lastMove >= self.moveDelay then
+        -- Only process movement if we're not ignoring held keys
+        if not self.ignoreHeldKeys and self.lastMove >= self.moveDelay then
             if love.keyboard.isDown('w') then
                 game:moveAxolotl(0, -1)
                 self.lastMove = 0
@@ -178,6 +187,14 @@ function InputManager:update(dt, game)
                 game:moveAxolotl(1, 0)
                 self.lastMove = 0
             end
+        end
+        
+        -- If any movement keys were released, we can start accepting held keys again
+        if self.ignoreHeldKeys and not (love.keyboard.isDown('w') or 
+                                       love.keyboard.isDown('s') or 
+                                       love.keyboard.isDown('a') or 
+                                       love.keyboard.isDown('d')) then
+            self.ignoreHeldKeys = false
         end
     end
 end
