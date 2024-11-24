@@ -499,6 +499,11 @@ function TetrisManager:exitTetrisMode()
         self.pieceQueue = {}
         self.dropTimer = 0
         self.moveTimer = 0
+        
+        -- Tell input manager to ignore held keys until they're released
+        if self.game and self.game.input then
+            self.game.input:setIgnoreHeldKeys(true)
+        end
     end
 end
 
