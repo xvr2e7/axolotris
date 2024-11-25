@@ -127,7 +127,10 @@ function TetrisManager:spawnNextPiece()
     
     -- Check for immediate collision (game over condition)
     if self:checkCollision(self.activePiece) then
-        self:exitTetrisMode()
+        -- Signal game over condition rather than silently exiting
+        if self.game and self.game.handleLoss then
+            self.game:handleLoss("stack_too_high")
+        end
     end
 end
 
