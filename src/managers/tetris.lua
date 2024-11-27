@@ -354,21 +354,34 @@ function TetrisManager:clearLines(lines)
             
             if block.barrier then
                 if isDoubleLineClear then
-                    -- Clear barrier completely
+                    -- Double line clear: destroy all barriers
                     self:clearBarrier(x, y)
-                elseif block.barrier.strength == "primary" then
-                    -- Convert to weakened barrier
-                    self:weakenBarrier(x, y)
                 else
-                    -- Clear weak barrier
-                    self:clearBarrier(x, y)
+                    -- Single line clear: behavior depends on barrier strength
+                    if block.barrier.strength == "primary" then
+                        -- Weaken primary barriers
+                        self:weakenBarrier(x, y)
+                    else
+                        -- Clear weak/weakened barriers
+                        self:clearBarrier(x, y)
+                    end
                 end
+            elseif block.locked and not block.safe then
+                -- Only clear locked (tetris) blocks that aren't safe
+                self:clearBlock(x, y)
             end
         end
     end
     
-    -- Then collapse lines (except safe blocks)
+    -- Then collapse lines
     self:collapseLines(lines)
+end
+
+function TetrisManager:clearBlock(x, y)
+    local block = self.game.grid.grid[y][x]
+    block.locked = false
+    block.color = self.game.grid.colors.original
+    block.tetrisColor = nil
 end
 
 function TetrisManager:clearBarrier(x, y)
@@ -421,28 +434,32 @@ function TetrisManager:collapseLines(clearedLines)
     -- Sort lines in ascending order
     table.sort(clearedLines)
     
-    -- For each cleared line
+    -- Process one cleared line at a time
     for _, clearedY in ipairs(clearedLines) do
-        -- Move all non-safe blocks down
+        -- Move blocks down, starting from the cleared line and going upward
         for y = clearedY, 2, -1 do
             for x = 1, self.game.GRID_WIDTH do
                 local block = self.game.grid.grid[y][x]
                 local blockAbove = self.game.grid.grid[y-1][x]
                 
-                if not block.safe then
-                    -- Copy properties from block above
-                    block.color = blockAbove.color
-                    block.locked = blockAbove.locked
-                    block.barrier = blockAbove.barrier
-                    block.disabled = blockAbove.disabled
-                    block.tetrisColor = blockAbove.tetrisColor
-                    
-                    -- Clear block above
-                    blockAbove.color = self.game.grid.colors.original
-                    blockAbove.locked = false
-                    blockAbove.barrier = nil
-                    blockAbove.disabled = false
-                    blockAbove.tetrisColor = nil
+                -- Only move blocks that should be moved (locked tetris blocks)
+                if not block.barrier and not block.safe then
+                    if blockAbove.locked then
+                        -- Copy only relevant properties from block above
+                        block.locked = true
+                        block.color = blockAbove.tetrisColor
+                        block.tetrisColor = blockAbove.tetrisColor
+                        
+                        -- Clear the block above
+                        blockAbove.locked = false
+                        blockAbove.color = self.game.grid.colors.original
+                        blockAbove.tetrisColor = nil
+                    else
+                        -- If block above isn't locked, just clear this block
+                        block.locked = false
+                        block.color = self.game.grid.colors.original
+                        block.tetrisColor = nil
+                    end
                 end
             end
         end
