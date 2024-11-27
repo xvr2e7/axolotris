@@ -105,12 +105,11 @@ Cross Lock [+]:
 - Creates reliable navigation points
 - Essential near starting position
 
-**Power-up Safe Zones** (Optional Feature)
+**Power-up Runes** (Optional Feature)
 
 - Collectible items that grant temporary immunity
-- Duration: Limited moves or time
-- Creates temporary safe passages
-- Strategic resource management
+- Remove (shovel away) unwanted Tetrimino
+- Add more available moves
 
 ### Breaking Mechanics
 
@@ -134,9 +133,6 @@ T-Shape Clear:
 Square Clear:
 [■][■]       Weakens all adjacent barriers
 [■][■]       (Must clear simultaneously)
-
-Line Clear:
-[■][■][■][■] Extended barrier field damage
 ```
 
 ### Essential Assets
