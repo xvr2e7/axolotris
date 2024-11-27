@@ -1,9 +1,10 @@
 local UIManager = {
     SIDEBAR_OFFSET = 32,
-    SIDEBAR_WIDTH = 4 * 32,
-    ITEM_HEIGHT = 2.5 * 32,
-    ITEM_PADDING = 32 * 0.5,
-    PREVIEW_SCALE = 0.4,
+    SIDEBAR_WIDTH = 64,
+    ITEM_SIZE = 48,
+    ITEM_PADDING = 8,
+    BADGE_SIZE = 20,
+    PREVIEW_SCALE = 0.8,
     MODE_INDICATOR_SIZE = 32,
     SCREEN_PADDING = 16,
     MESSAGE_BOX_WIDTH = 300,
@@ -141,44 +142,45 @@ function UIManager:drawPauseMenu(game, renderManager)
 end
 
 function UIManager:drawSidebar(tetriminoManager, renderManager)
-    
-    local sidebarX = 16  -- Small padding from left edge
+    -- Position sidebar at left edge with small padding
+    local sidebarX = 16
     local sidebarY = (love.graphics.getHeight() - (self.gridHeight * self.gridSize)) / 2
     
     -- Draw sidebar background
     renderManager:drawRect(
         sidebarX, 
         sidebarY,
-        self.sidebarWidth,
+        self.SIDEBAR_WIDTH,
         self.gridHeight * self.gridSize,
-        renderManager.COLORS.ui.background
+        {0.1, 0.1, 0.15, 0.9}
     )
     
     -- Draw sidebar border
     renderManager:drawRect(
         sidebarX,
         sidebarY,
-        self.sidebarWidth,
+        self.SIDEBAR_WIDTH,
         self.gridHeight * self.gridSize,
-        renderManager.COLORS.ui.border,
+        {0.2, 0.2, 0.25},
         "line"
     )
     
-    -- Draw tetrimino previews and counts
-    local itemX = sidebarX + self.itemPadding
-    local itemY = sidebarY + self.itemPadding
+    -- Draw tetrimino icons and counts
+    local itemX = sidebarX + (self.SIDEBAR_WIDTH - self.ITEM_SIZE) / 2
+    local itemY = sidebarY + self.ITEM_PADDING
     
     for type, pattern in pairs(tetriminoManager.TETRIMINOES) do
-        -- Draw preview background
+        -- Draw icon background
         renderManager:drawRect(
             itemX,
             itemY,
-            self.sidebarWidth - self.itemPadding * 2,
-            self.itemHeight - self.itemPadding,
-            renderManager.COLORS.ui.shadow
+            self.ITEM_SIZE,
+            self.ITEM_SIZE,
+            {0.15, 0.15, 0.2, 0.5},
+            "fill"
         )
         
-        -- Draw tetrimino preview using pattern
+        -- Draw tetrimino preview
         self:drawTetriminoPreview(
             type,
             pattern,
@@ -188,16 +190,16 @@ function UIManager:drawSidebar(tetriminoManager, renderManager)
             renderManager
         )
         
-        -- Draw count
+        -- Draw count badge
         local count = tetriminoManager.tetriminoCounts[type] or 0
         self:drawTetriminoCount(
             count,
-            itemX,
-            itemY,
+            itemX + self.ITEM_SIZE - self.BADGE_SIZE/2,
+            itemY - self.BADGE_SIZE/2,
             renderManager
         )
         
-        itemY = itemY + self.itemHeight
+        itemY = itemY + self.ITEM_SIZE + self.ITEM_PADDING
     end
 end
 
@@ -206,68 +208,63 @@ function UIManager:drawTetriminoPreview(type, pattern, x, y, tetriminoManager, r
     local minX, maxX = math.huge, -math.huge
     local minY, maxY = math.huge, -math.huge
     
-    for _, pos in ipairs(pattern[1]) do -- pattern[1] is first rotation
+    for _, pos in ipairs(pattern[1]) do
         minX = math.min(minX, pos[1])
         maxX = math.max(maxX, pos[1])
         minY = math.min(minY, pos[2])
         maxY = math.max(maxY, pos[2])
     end
     
-    -- Calculate pattern dimensions
-    local patternWidth = (maxX - minX + 1) * self.gridSize * self.previewScale
-    local patternHeight = (maxY - minY + 1) * self.gridSize * self.previewScale
+    -- Calculate scale to fit in icon
+    local patternWidth = (maxX - minX + 1)
+    local patternHeight = (maxY - minY + 1)
+    local scale = math.min(
+        (self.ITEM_SIZE * self.PREVIEW_SCALE) / (patternWidth * self.gridSize),
+        (self.ITEM_SIZE * self.PREVIEW_SCALE) / (patternHeight * self.gridSize)
+    )
     
-    -- Calculate centered position
-    local previewAreaWidth = self.sidebarWidth - self.itemPadding * 2
-    local previewAreaHeight = self.itemHeight - self.itemPadding
-    
-    local centerX = x + (previewAreaWidth - patternWidth) / 2
-    local centerY = y + (previewAreaHeight - patternHeight) / 2
-    
-    -- Adjust for pattern offset to ensure centering
-    centerX = centerX - minX * self.gridSize * self.previewScale
-    centerY = centerY - minY * self.gridSize * self.previewScale
+    -- Center the pattern in the icon
+    local centerX = x + self.ITEM_SIZE/2
+    local centerY = y + self.ITEM_SIZE/2
     
     -- Draw each block of the tetrimino
     for _, pos in ipairs(pattern[1]) do
+        local blockX = centerX + (pos[1] - (maxX + minX)/2) * self.gridSize * scale
+        local blockY = centerY + (pos[2] - (maxY + minY)/2) * self.gridSize * scale
+        local blockSize = self.gridSize * scale
+        
         renderManager:drawRect(
-            centerX + pos[1] * self.gridSize * self.previewScale,
-            centerY + pos[2] * self.gridSize * self.previewScale,
-            self.gridSize * self.previewScale - 1,
-            self.gridSize * self.previewScale - 1,
+            blockX,
+            blockY,
+            blockSize - 1,
+            blockSize - 1,
             tetriminoManager.COLORS[type]
         )
     end
 end
 
 function UIManager:drawTetriminoCount(count, x, y, renderManager)
-    local TEXT_SCALE = 1.2
-    local font = love.graphics.getFont()
-
-    -- Calculate text dimensions
-    local textWidth = font:getWidth(tostring(count)) * TEXT_SCALE
-    local textHeight = font:getHeight() * TEXT_SCALE
-
-    -- Position in bottom right of preview area
-    local textX = x + (self.sidebarWidth - self.itemPadding * 2) - textWidth
-    local textY = y + (self.itemHeight - self.itemPadding) - textHeight
-
-    -- Draw shadow with slight offset
-    renderManager:drawText(
-        tostring(count),
-        textX + 1,
-        textY + 1,
-        renderManager.COLORS.ui.shadow,
-        TEXT_SCALE
+    -- Draw badge circle
+    renderManager:drawRect(
+        x, y,
+        self.BADGE_SIZE,
+        self.BADGE_SIZE,
+        {0.3, 0.3, 0.35, 0.9},
+        "fill"
     )
-
-    -- Draw main text
+    
+    -- Draw count text
+    local font = love.graphics.getFont()
+    local text = tostring(count)
+    local textWidth = font:getWidth(text)
+    local textHeight = font:getHeight()
+    
     renderManager:drawText(
-        tostring(count),
-        textX,
-        textY,
-        renderManager.COLORS.ui.text,
-        TEXT_SCALE
+        text,
+        x + (self.BADGE_SIZE - textWidth)/2,
+        y + (self.BADGE_SIZE - textHeight)/2,
+        {0.9, 0.9, 0.9},
+        1
     )
 end
 
